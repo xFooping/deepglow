@@ -30,6 +30,12 @@ const ICONS := {
 	"elevator": [".b...b..", ".bbbbb..", ".b...b..", ".bbbbb..", ".b...b..", ".bbbbb..", ".b...b..", ".b...b.."],
 	"chain": ["....k...", "...k....", "..kkkk..", "....k...", "...k....", "..kkkk..", "....k...", "...k...."],
 	"mushroom": ["..cccc..", ".cwccwc.", "cccccccc", "cwcccwcc", "..wwww..", "...ww...", "...ww...", "..wwww.."],
+	"prism": ["...w....", "..wcw...", "..ccc...", ".ccwcc..", ".ccccc..", "cckccrc.", "ccccccc.", "........"],
+	"water": ["...c....", "...c....", "..ccc...", ".ccwcc..", ".cwccc..", ".ccccc..", "..ccc...", "........"],
+	"kindling": ["..o.....", ".oyo..o.", "..o..oyo", "bbbbbbbb", ".bdbbdb.", "bbbbbbbb", ".bbdbbd.", "........"],
+	"artifact": ["...c....", "..cwc...", ".cwcwc..", "cwcwcwc.", ".cwcwc..", "..cwc...", "...c....", "........"],
+	"auto_collect": ["k.rr.rr.", ".krr.rrk", ".rr..rr.", ".rr..rr.", ".rr..rr.", ".rrrrrr.", "k.rrrr.k", "........"],
+	"mastery": ["k..o...k", "...oo...", "..oyo.o.", ".ooyyoo.", ".oyywyo.", "oyywwyyo", "oyywwyyo", "k.oyyo.k"],
 	"gate": ["...w....", "...w....", "...w....", ".wwwww..", "..www...", "...w....", "gggggggg", "gdgdgdgd"],
 }
 
@@ -48,6 +54,10 @@ func _init() -> void:
 		_save(_pickup(c), str(ore["pickup_texture_path"]))
 	_save(_peg(), "res://art/blocks/peg.png")
 	_save(_mushroom(), "res://art/blocks/mushroom.png")
+	_save(_prism(), "res://art/blocks/prism.png")
+	_save(_water(), "res://art/blocks/water.png")
+	_save(_kindling(), "res://art/blocks/kindling.png")
+	_save(_rich(), "res://art/blocks/rich_vein.png")
 	var shafts: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/shafts.json"))
 	for entry: Variant in shafts:
 		var shaft: Dictionary = entry
@@ -152,6 +162,65 @@ func _mushroom() -> Image:
 				img.set_pixel(x, y, col)
 			elif in_stem:
 				img.set_pixel(x, y, Color(0.9, 0.86, 0.76) if absf(x - 7.5) < 1.0 else Color(0.7, 0.66, 0.58))
+	return img
+
+
+## A pale diamond-shaped prism with rainbow edge pixels, ~11 px across.
+func _prism() -> Image:
+	var img := _new(16, 16)
+	var rainbow: Array[Color] = [Color(1, 0.6, 0.6), Color(1, 0.9, 0.5), Color(0.6, 1, 0.7), Color(0.6, 0.8, 1), Color(0.9, 0.7, 1)]
+	for y in 16:
+		for x in 16:
+			var d := absf(x - 7.5) + absf(y - 7.5) * 0.8
+			if d > 5.5:
+				continue
+			var col := Color(0.97, 0.9, 1.0)
+			if d > 4.5:
+				col = rainbow[(x + y) % rainbow.size()]
+			elif x < 8 and y < 8:
+				col = Color(1, 1, 1)
+			img.set_pixel(x, y, col)
+	return img
+
+
+## Translucent glowing water with a lighter ripple line.
+func _water() -> Image:
+	var img := _new(16, 16)
+	for y in 16:
+		for x in 16:
+			var col := Color(0.35, 0.6, 1.0, 0.45)
+			if (y == 4 and x % 6 < 3) or (y == 11 and (x + 3) % 6 < 3):
+				col = Color(0.75, 0.9, 1.0, 0.6)
+			img.set_pixel(x, y, col)
+	return img
+
+
+## Dry wood block: horizontal grain with darker knots.
+func _kindling() -> Image:
+	var img := _new(16, 16)
+	var wood := Color(0.62, 0.42, 0.24)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 5
+	for y in 16:
+		for x in 16:
+			var col := wood.lightened(0.12) if (y % 4 == 1) else wood
+			if x == 0 or y == 0:
+				col = wood.lightened(0.25)
+			elif x == 15 or y == 15:
+				col = wood.darkened(0.4)
+			img.set_pixel(x, y, col)
+	for _k in 3:
+		img.set_pixel(rng.randi_range(3, 12), rng.randi_range(3, 12), wood.darkened(0.5))
+	return img
+
+
+## Sparkle overlay drawn over rich-vein blocks.
+func _rich() -> Image:
+	var img := _new(16, 16)
+	for p: Vector2i in [Vector2i(3, 3), Vector2i(12, 5), Vector2i(6, 11), Vector2i(11, 12)]:
+		img.set_pixelv(p, Color(1, 1, 1, 0.95))
+		for d: Vector2i in [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]:
+			img.set_pixelv(p + d, Color(0.8, 0.95, 1.0, 0.6))
 	return img
 
 

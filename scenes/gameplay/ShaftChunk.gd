@@ -8,6 +8,7 @@ var rows: int = 0
 var kinds := PackedByteArray()    ## Shaft.Kind per cell, row-major
 var ore := PackedByteArray()      ## ore index per cell (blocks only)
 var hp := PackedInt32Array()
+var rich := PackedByteArray()     ## 1 = rich vein (Drip Caverns: extra yield next to water)
 
 
 func _init(chunk_index: int, chunk_rows: int) -> void:

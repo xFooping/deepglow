@@ -21,6 +21,10 @@ class Ember:
 	## Launched from inside rock (the keeper hangs above the dug-out area): passes through
 	## blocks and pegs until it first reaches open air.
 	var phasing: bool = false
+	## Prisms this ember already split on (each prism splits an ember at most once).
+	var split_cells: Array[Vector2i] = []
+	var water_drain: float = 0.0  ## fractional durability lost in water, carried between ticks
+	var steam_timer: float = 0.0
 
 
 var supply: int = 0
@@ -56,6 +60,10 @@ var _crit_chance: float
 var _chain_chance: float
 var _mushroom_restitution: float
 var _mushroom_nudge: float
+var _prism_chance: float
+var _water_drain: float
+var _water_speed: float
+var _steam_interval: float
 
 
 func setup(shaft: Shaft, camera: CameraRig, day_seed: int) -> void:
@@ -67,6 +75,8 @@ func setup(shaft: Shaft, camera: CameraRig, day_seed: int) -> void:
 	_block_restitution = DataDB.num("physics.block_restitution")
 	_peg_restitution = DataDB.num("physics.peg_restitution")
 	_mushroom_nudge = DataDB.num("twists.mushroom_nudge_speed")
+	_water_speed = DataDB.num("twists.water_speed_mult")
+	_steam_interval = DataDB.num("twists.water_steam_interval_s")
 	_wall_restitution = DataDB.num("physics.wall_restitution")
 	_stuck_speed = DataDB.num("physics.stuck_speed_threshold")
 	_stuck_limit = DataDB.num("physics.stuck_time_to_burnout")
@@ -100,6 +110,8 @@ func _cache_stats() -> void:
 	_crit_chance = Stats.get_f("crit_chance")
 	_chain_chance = Stats.get_f("chain_spark_chance")
 	_mushroom_restitution = Stats.get_f("mushroom_restitution")
+	_prism_chance = Stats.get_f("prism_split_chance")
+	_water_drain = DataDB.num("twists.water_drain_per_sec") * Stats.get_f("water_drain_mult")
 
 
 ## Launches one ember from the day's supply.
@@ -137,9 +149,9 @@ func overlaps_solid(p: Vector2, ignore_blocks: bool = false) -> bool:
 	for row in range(floori((p.y - _radius) / cell), floori((p.y + _radius) / cell) + 1):
 		for col in range(floori((p.x - _radius) / cell), floori((p.x + _radius) / cell) + 1):
 			var kind := _shaft.kind_at(col, row)
-			if kind == Shaft.Kind.EMPTY:
+			if kind == Shaft.Kind.EMPTY or kind == Shaft.Kind.WATER:
 				continue
-			if kind == Shaft.Kind.PEG or kind == Shaft.Kind.MUSHROOM:
+			if kind == Shaft.Kind.PEG or kind == Shaft.Kind.MUSHROOM or kind == Shaft.Kind.PRISM:
 				if not ignore_blocks and p.distance_squared_to(_shaft.cell_center(Vector2i(col, row))) < (_radius + _peg_radius) ** 2:
 					return true
 				continue
@@ -162,6 +174,9 @@ func _spawn(origin: Vector2, velocity: Vector2) -> void:
 	e.stuck_time = 0.0
 	e.hit_cooldown = 0.0
 	e.phasing = overlaps_solid(origin) and not overlaps_solid(origin, true)
+	e.split_cells.clear()
+	e.water_drain = 0.0
+	e.steam_timer = 0.0
 	active.append(e)
 
 
@@ -195,7 +210,10 @@ func _integrate(e: Ember, delta: float) -> void:
 	for _s in steps:
 		e.vel.y += _gravity * dt
 		e.vel = e.vel.limit_length(_max_speed)
-		e.pos += e.vel * dt
+		var in_water := _shaft.water_at(e.pos)
+		e.pos += e.vel * dt * (_water_speed if in_water else 1.0)
+		if in_water:
+			_soak(e, dt)
 		_collide(e)
 		if e.durability <= 0:
 			return
@@ -220,11 +238,11 @@ func _collide(e: Ember) -> void:
 	for row in range(floori((e.pos.y - _radius) / cell), floori((e.pos.y + _radius) / cell) + 1):
 		for col in range(floori((e.pos.x - _radius) / cell), floori((e.pos.x + _radius) / cell) + 1):
 			var kind := _shaft.kind_at(col, row)
-			if kind == Shaft.Kind.EMPTY:
+			if kind == Shaft.Kind.EMPTY or kind == Shaft.Kind.WATER:
 				continue
 			var pen := 0.0
 			var normal := Vector2.UP
-			if kind == Shaft.Kind.PEG or kind == Shaft.Kind.MUSHROOM:
+			if kind == Shaft.Kind.PEG or kind == Shaft.Kind.MUSHROOM or kind == Shaft.Kind.PRISM:
 				if e.phasing:
 					continue
 				var d := e.pos - _shaft.cell_center(Vector2i(col, row))
@@ -243,7 +261,7 @@ func _collide(e: Ember) -> void:
 				var dist2 := d.length_squared()
 				if dist2 >= _radius * _radius:
 					continue
-				if kind == Shaft.Kind.BLOCK:
+				if kind == Shaft.Kind.BLOCK or kind == Shaft.Kind.KINDLING:
 					touching_block = true
 					if e.phasing:
 						continue
@@ -274,6 +292,10 @@ func _collide(e: Ember) -> void:
 		_bounce(e, best_normal, _peg_restitution)
 		AudioManager.play("ember_bounce_peg")
 		return
+	if best_kind == Shaft.Kind.PRISM:
+		_bounce(e, best_normal, _peg_restitution)
+		_try_split(e, best_cell)
+		return
 	if best_kind == Shaft.Kind.MUSHROOM:
 		# Springy: gains a little speed and gets nudged sideways, away from the cap's center.
 		_bounce(e, best_normal, _mushroom_restitution)
@@ -284,10 +306,10 @@ func _collide(e: Ember) -> void:
 	_bounce(e, best_normal, _block_restitution)
 	# A short per-ember hit cooldown stops a settled ember from spending its durability 60 times a
 	# second; it grinds through the block at a steady rate instead of dying stuck on top of it.
-	var hittable := best_kind == Shaft.Kind.BLOCK or best_kind == Shaft.Kind.BOSS
+	var hittable := best_kind == Shaft.Kind.BLOCK or best_kind == Shaft.Kind.KINDLING or best_kind == Shaft.Kind.BOSS
 	if hittable and -vn >= _min_hit_speed and e.hit_cooldown <= 0.0:
 		e.hit_cooldown = _hit_cooldown
-		if best_kind == Shaft.Kind.BLOCK:
+		if best_kind != Shaft.Kind.BOSS:
 			_hit_block(e, best_cell)
 		else:
 			_hit_boss(e)
@@ -304,10 +326,48 @@ func _hit_block(e: Ember, cell: Vector2i) -> void:
 	e.durability -= 1
 	e.stuck_time = 0.0  # grinding through a block is progress, not being stuck
 	AudioManager.play("ember_bounce_block")
-	if _shaft.hit_block(cell, damage, crit) and _rng.randf() < _chain_chance:
+	if _shaft.hit_block(cell, damage, crit, e.damage) and _rng.randf() < _chain_chance:
 		var next := _shaft.random_adjacent_block(cell, _rng)
 		if next.x >= 0:
-			_shaft.hit_block(next, e.damage, false)
+			_shaft.hit_block(next, e.damage, false, e.damage)
+
+
+## Glimmer Grotto: a prism may split the ember. The child copies its damage, takes half of its
+## remaining durability (rounded up), flies on the mirrored path, and costs no supply.
+func _try_split(e: Ember, cell: Vector2i) -> void:
+	if e.split_cells.has(cell) or active.size() >= _cap or _rng.randf() >= _prism_chance:
+		return
+	e.split_cells.append(cell)
+	var child: Ember = _pool.pop_back() if not _pool.is_empty() else Ember.new()
+	child.pos = e.pos
+	child.prev = e.pos
+	child.vel = Vector2(-e.vel.x, e.vel.y)
+	child.damage = e.damage
+	child.max_durability = e.max_durability
+	child.durability = ceili(e.durability * 0.5)
+	child.stuck_time = 0.0
+	child.hit_cooldown = 0.0
+	child.phasing = false
+	child.split_cells = e.split_cells.duplicate()
+	child.water_drain = 0.0
+	child.steam_timer = 0.0
+	active.append(child)
+	Events.prism_split.emit(e.pos)
+	AudioManager.play("prism_split")
+
+
+## Drip Caverns: water drains durability over time (fractions carry over) and hisses steam.
+func _soak(e: Ember, dt: float) -> void:
+	e.water_drain += _water_drain * dt
+	if e.water_drain >= 1.0:
+		var whole := floori(e.water_drain)
+		e.durability -= whole
+		e.water_drain -= whole
+	e.steam_timer -= dt
+	if e.steam_timer <= 0.0:
+		e.steam_timer = _steam_interval
+		Events.ember_steamed.emit(e.pos)
+		AudioManager.play("water_hiss")
 
 
 ## Boss hits work like block hits: ember damage (crits too), 1 durability.

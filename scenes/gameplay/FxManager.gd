@@ -40,6 +40,9 @@ func _ready() -> void:
 	Events.block_hit.connect(_on_block_hit)
 	Events.ember_burned_out.connect(_on_ember_burned_out)
 	Events.boss_shattered.connect(_on_boss_shattered)
+	Events.kindling_popped.connect(_on_kindling_popped)
+	Events.prism_split.connect(_on_prism_split)
+	Events.ember_steamed.connect(_on_ember_steamed)
 
 
 func burst(at: Vector2, color: Color, count: int, speed: float, life: float) -> void:
@@ -55,8 +58,23 @@ func burst(at: Vector2, color: Color, count: int, speed: float, life: float) -> 
 		_active.append(p)
 
 
-func _on_block_broken(_cell: Vector2i, ore_id: String, world_pos: Vector2) -> void:
+func _on_block_broken(_cell: Vector2i, ore_id: String, world_pos: Vector2, yield_mult: float) -> void:
 	burst(world_pos, DataDB.ore_color(ore_id), _chip_count, _chip_speed, _chip_life)
+	if yield_mult > 1.0:
+		burst(world_pos, Color(0.9, 1.0, 1.0), _spark_count, _spark_speed, _spark_life)
+
+
+## Warm pops, not explosions: an orange burst that grows a little with the chain.
+func _on_kindling_popped(world_pos: Vector2, chain: int) -> void:
+	burst(world_pos, Color(1.0, 0.6, 0.25), _chip_count + mini(chain, 6), _chip_speed, _chip_life)
+
+
+func _on_prism_split(world_pos: Vector2) -> void:
+	burst(world_pos, Color(1.0, 0.85, 1.0), _spark_count, _spark_speed, _spark_life)
+
+
+func _on_ember_steamed(world_pos: Vector2) -> void:
+	burst(world_pos + Vector2(0, -3), Color(0.85, 0.92, 1.0, 0.7), 2, _spark_speed * 0.5, _spark_life)
 
 
 func _on_block_hit(_cell: Vector2i, _ore_id: String, _damage: int, crit: bool, world_pos: Vector2) -> void:

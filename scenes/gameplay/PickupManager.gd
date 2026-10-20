@@ -115,8 +115,8 @@ func _finish_collect_all() -> void:
 		all_collected.emit()
 
 
-func _on_block_broken(_cell: Vector2i, ore_id: String, world_pos: Vector2) -> void:
-	spawn(int(DataDB.ore_index[ore_id]), world_pos, Stats.get_i("ore_yield_" + ore_id))
+func _on_block_broken(_cell: Vector2i, ore_id: String, world_pos: Vector2, yield_mult: float) -> void:
+	spawn(int(DataDB.ore_index[ore_id]), world_pos, roundi(Stats.get_f("ore_yield_" + ore_id) * yield_mult))
 
 
 func _merge_into_neighbour(ore_index: int, at: Vector2, count: int) -> bool:

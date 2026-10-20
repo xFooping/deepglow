@@ -5,10 +5,14 @@ extends Node2D
 ## that are updated cell by cell when something breaks.
 ## 1 row = 1 meter. Below boss depth is an open chamber holding the boss crystal, then an indestructible floor.
 
-enum Kind { EMPTY, BLOCK, PEG, SPECIAL, FLOOR, MUSHROOM, BOSS }
+enum Kind { EMPTY, BLOCK, PEG, SPECIAL, FLOOR, MUSHROOM, BOSS, PRISM, WATER, KINDLING }
 
 const PEG_TEXTURE := "res://art/blocks/peg.png"
 const MUSHROOM_TEXTURE := "res://art/blocks/mushroom.png"
+const PRISM_TEXTURE := "res://art/blocks/prism.png"
+const WATER_TEXTURE := "res://art/blocks/water.png"
+const KINDLING_TEXTURE := "res://art/blocks/kindling.png"
+const RICH_TEXTURE := "res://art/blocks/rich_vein.png"
 const CRACK_TEXTURES: Array[String] = ["res://art/blocks/crack_1.png", "res://art/blocks/crack_2.png"]
 
 var shaft_id: int = 1
@@ -29,11 +33,21 @@ var _ore_max_hp := PackedInt32Array()
 var _block_sources := PackedInt32Array()  ## ore index -> TileSet source id
 var _peg_source: int = -1
 var _mushroom_source: int = -1
+var _prism_source: int = -1
+var _water_source: int = -1
+var _kindling_source: int = -1
+var _rich_source: int = -1
+var _rich_mult: float = 2.0
+var _kindling_delay: float
+var _kindling_radius: int
+var _bursts: Array[Dictionary] = []  ## pending kindling bursts: {cell, damage, chain, t}
 var _crack_sources := PackedInt32Array()
 var _crack_stage_1: float = 0.66
 var _crack_stage_2: float = 0.33
 var _blocks: TileMapLayer
 var _cracks: TileMapLayer
+var _water: TileMapLayer
+var _overlay: TileMapLayer
 var _flash: ShaftFlash
 var _squash: MushroomSquash
 
@@ -65,12 +79,25 @@ func setup(id: int, day_seed: int) -> void:
 		_block_sources.append(_add_source(tile_set, DataDB.texture(str(ore["block_texture_path"])), color))
 	_peg_source = _add_source(tile_set, DataDB.texture(PEG_TEXTURE), Color(0.7, 0.95, 1.0))
 	_mushroom_source = _add_source(tile_set, DataDB.texture(MUSHROOM_TEXTURE), Color(0.4, 0.9, 0.8))
+	_prism_source = _add_source(tile_set, DataDB.texture(PRISM_TEXTURE), Color(1.0, 0.8, 0.95))
+	_water_source = _add_source(tile_set, DataDB.texture(WATER_TEXTURE), Color(0.3, 0.5, 0.9, 0.5))
+	_kindling_source = _add_source(tile_set, DataDB.texture(KINDLING_TEXTURE), Color(0.6, 0.4, 0.2))
+	_rich_source = _add_source(tile_set, DataDB.texture(RICH_TEXTURE), Color(1, 1, 1, 0.3))
+	_rich_mult = DataDB.num("twists.rich_vein_yield_mult")
+	_kindling_delay = DataDB.num("twists.kindling_chain_delay_s")
+	_kindling_radius = DataDB.integer("twists.kindling_radius_cells")
 	for path in CRACK_TEXTURES:
 		_crack_sources.append(_add_source(tile_set, DataDB.texture(path), Color(0, 0, 0, 0.4)))
 
+	_water = TileMapLayer.new()
+	_water.tile_set = tile_set
+	add_child(_water)
 	_blocks = TileMapLayer.new()
 	_blocks.tile_set = tile_set
 	add_child(_blocks)
+	_overlay = TileMapLayer.new()
+	_overlay.tile_set = tile_set
+	add_child(_overlay)
 	_cracks = TileMapLayer.new()
 	_cracks.tile_set = tile_set
 	add_child(_cracks)
@@ -120,6 +147,8 @@ func free_above(world_y: float) -> void:
 					var c := Vector2i(col, chunk.first_row + lr)
 					_blocks.erase_cell(c)
 					_cracks.erase_cell(c)
+					_water.erase_cell(c)
+					_overlay.erase_cell(c)
 			_chunks[_freed_through] = null
 
 
@@ -145,26 +174,76 @@ func kind_at(col: int, row: int) -> int:
 	return chunk.kinds[(row - chunk.first_row) * columns + col]
 
 
-## Damages a block. Returns true if it broke.
-func hit_block(cell: Vector2i, damage: int, crit: bool) -> bool:
-	if kind_at(cell.x, cell.y) != Kind.BLOCK:
+## Damages a block or kindling. Returns true if it broke. ember_damage is the base (non-crit)
+## damage of whatever hit it; a breaking kindling block bursts for a multiple of it.
+func hit_block(cell: Vector2i, damage: int, crit: bool, ember_damage: int = 0, chain: int = 0) -> bool:
+	var kind := kind_at(cell.x, cell.y)
+	if kind != Kind.BLOCK and kind != Kind.KINDLING:
 		return false
 	@warning_ignore("integer_division")
 	var chunk: ShaftChunk = _chunks[cell.y / chunk_rows]
 	var i := (cell.y - chunk.first_row) * columns + cell.x
 	var ore_i := chunk.ore[i]
 	var center := cell_center(cell)
+	var max_hp := chunk.hp[i]
+	if kind == Kind.BLOCK:
+		max_hp = _ore_max_hp[ore_i]
 	var remaining := chunk.apply_damage(i, damage)
-	Events.block_hit.emit(cell, ore_ids[ore_i], damage, crit, center)
+	if kind == Kind.BLOCK:
+		Events.block_hit.emit(cell, ore_ids[ore_i], damage, crit, center)
 	if remaining > 0:
-		_update_crack(cell, float(remaining) / _ore_max_hp[ore_i])
+		if kind == Kind.BLOCK:
+			_update_crack(cell, float(remaining) / max_hp)
 		_flash.add(cell)
 		return false
 	_blocks.erase_cell(cell)
 	_cracks.erase_cell(cell)
-	Events.block_broken.emit(cell, ore_ids[ore_i], center)
+	_overlay.erase_cell(cell)
+	if kind == Kind.KINDLING:
+		_queue_burst(cell, maxi(ember_damage, 1), chain)
+		return true
+	var yield_mult := _rich_mult if chunk.rich[i] == 1 else 1.0
+	chunk.rich[i] = 0
+	Events.block_broken.emit(cell, ore_ids[ore_i], center, yield_mult)
 	AudioManager.play("block_break")
 	return true
+
+
+# --- The Hearth: kindling chain reactions -----------------------------------
+
+func _queue_burst(cell: Vector2i, ember_damage: int, chain: int) -> void:
+	_bursts.append({"cell": cell, "damage": ember_damage, "chain": chain, "t": _kindling_delay * float(chain > 0)})
+
+
+## Warm, staggered pops: each kindling block bursts a beat after the one that set it off,
+## hitting every block within the burst radius for kindling_burst_mult x ember damage.
+func _physics_process(delta: float) -> void:
+	if _bursts.is_empty():
+		return
+	var due: Array[Dictionary] = []
+	for b in _bursts:
+		b["t"] = float(b["t"]) - delta
+		if float(b["t"]) <= 0.0:
+			due.append(b)
+	for b in due:
+		_bursts.erase(b)
+		var cell: Vector2i = b["cell"]
+		var chain: int = int(b["chain"]) + 1
+		var ember_damage: int = b["damage"]
+		var burst := roundi(ember_damage * Stats.get_f("kindling_burst_mult"))
+		Events.kindling_popped.emit(cell_center(cell), chain)
+		AudioManager.play("kindling_pop")
+		var best := int(GameState.achievement_stats.get("max_kindling_chain", 0))
+		if chain > best:
+			GameState.achievement_stats["max_kindling_chain"] = chain
+		for dy in range(-_kindling_radius, _kindling_radius + 1):
+			for dx in range(-_kindling_radius, _kindling_radius + 1):
+				if dx != 0 or dy != 0:
+					hit_block(cell + Vector2i(dx, dy), burst, false, ember_damage, chain)
+
+
+func water_at(p: Vector2) -> bool:
+	return kind_at(floori(p.x / cell_px), floori(p.y / cell_px)) == Kind.WATER
 
 
 ## Places today's boss crystal on the chamber floor, centered. Skipped once that boss is beaten.
@@ -203,7 +282,8 @@ func random_adjacent_block(cell: Vector2i, rng: RandomNumberGenerator) -> Vector
 	var options: Array[Vector2i] = []
 	for d: Vector2i in [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]:
 		var n := cell + d
-		if kind_at(n.x, n.y) == Kind.BLOCK:
+		var k := kind_at(n.x, n.y)
+		if k == Kind.BLOCK or k == Kind.KINDLING:
 			options.append(n)
 	if options.is_empty():
 		return Vector2i(-1, -1)
@@ -225,6 +305,14 @@ func _paint_chunk(chunk: ShaftChunk) -> void:
 				_blocks.set_cell(c, _peg_source, Vector2i.ZERO)
 			Kind.MUSHROOM:
 				_blocks.set_cell(c, _mushroom_source, Vector2i.ZERO)
+			Kind.PRISM:
+				_blocks.set_cell(c, _prism_source, Vector2i.ZERO)
+			Kind.WATER:
+				_water.set_cell(c, _water_source, Vector2i.ZERO)
+			Kind.KINDLING:
+				_blocks.set_cell(c, _kindling_source, Vector2i.ZERO)
+		if chunk.rich[i] == 1:
+			_overlay.set_cell(c, _rich_source, Vector2i.ZERO)
 
 
 ## Hides a mushroom's tile while MushroomSquash draws it squashed, then restores it.
