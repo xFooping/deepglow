@@ -15,6 +15,7 @@ var last_pick: Dictionary = {}            ## {"shaft": int, "depth_m": int}
 var day_count: int = 0
 var play_time_s: float = 0.0
 var endless_best_depth: int = 0
+var endless_unlocked: bool = false  ## Set when the final crystal falls; Endless Mode itself is Phase 6.
 var settings: Dictionary = {}
 var achievement_stats: Dictionary = {}
 
@@ -56,6 +57,7 @@ func reset_to_new_game() -> void:
 	day_count = 0
 	play_time_s = 0.0
 	endless_best_depth = 0
+	endless_unlocked = false
 	achievement_stats = {}
 	day_ore = {}
 	day_max_depth_m = 0
@@ -135,6 +137,10 @@ func defeat_boss(shaft_id: int) -> void:
 	day_boss_defeated = true
 	Events.boss_defeated.emit(shaft_id)
 	Events.ores_changed.emit()
+
+
+func is_final_shaft(shaft_id: int) -> bool:
+	return not DataDB.shaft_order.is_empty() and DataDB.shaft_order.back() == shaft_id
 
 
 func _add_elevator_stop(shaft_id: int, depth: int) -> void:
@@ -267,6 +273,7 @@ func to_dict() -> Dictionary:
 		"day_count": day_count,
 		"play_time_s": play_time_s,
 		"endless_best_depth": endless_best_depth,
+		"endless_unlocked": endless_unlocked,
 		"settings": settings,
 		"achievement_stats": achievement_stats,
 	}
@@ -291,6 +298,7 @@ func from_dict(d: Dictionary) -> void:
 	day_count = int(d.get("day_count", 0))
 	play_time_s = float(d.get("play_time_s", 0.0))
 	endless_best_depth = int(d.get("endless_best_depth", 0))
+	endless_unlocked = bool(d.get("endless_unlocked", false))
 	settings = d.get("settings", {})
 	achievement_stats = d.get("achievement_stats", {})
 	Events.ores_changed.emit()

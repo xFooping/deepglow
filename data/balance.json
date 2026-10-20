@@ -49,7 +49,13 @@
 	},
 	"twists": {
 		"mushroom_nudge_speed": 45,
-		"mushroom_squash_s": 0.22
+		"mushroom_squash_s": 0.22,
+		"water_drain_per_sec": 4,
+		"water_speed_mult": 0.6,
+		"water_steam_interval_s": 0.25,
+		"rich_vein_yield_mult": 2,
+		"kindling_radius_cells": 1,
+		"kindling_chain_delay_s": 0.07
 	},
 	"blocks": {
 		"crack_stage_1": 0.66,
@@ -148,8 +154,8 @@
 		"autoplay_menu_overhead_s": 6,
 		"autoplay_cursor_speed": 260,
 		"autoplay_aim_radius_px": 60,
-		"autoplay_max_days": 400,
-		"autoplay_goal_boss_shaft": 2,
+		"autoplay_max_days": 1000,
+		"autoplay_goal_boss_shaft": 5,
 		"autoplay_boss_attempt_ratio": 2.2
 	}
 }
