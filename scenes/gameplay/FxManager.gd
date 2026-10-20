@@ -39,6 +39,7 @@ func _ready() -> void:
 	Events.block_broken.connect(_on_block_broken)
 	Events.block_hit.connect(_on_block_hit)
 	Events.ember_burned_out.connect(_on_ember_burned_out)
+	Events.boss_shattered.connect(_on_boss_shattered)
 
 
 func burst(at: Vector2, color: Color, count: int, speed: float, life: float) -> void:
@@ -65,6 +66,13 @@ func _on_block_hit(_cell: Vector2i, _ore_id: String, _damage: int, crit: bool, w
 
 func _on_ember_burned_out(world_pos: Vector2) -> void:
 	burst(world_pos, Color(1.0, 0.6, 0.25), _spark_count, _spark_speed, _spark_life)
+
+
+## Glowing shards: a big, slow, gold-tinted burst in the crystal's color.
+func _on_boss_shattered(world_pos: Vector2, color: Color) -> void:
+	var count := DataDB.integer("boss.shatter_particles")
+	burst(world_pos, color.lightened(0.3), count, DataDB.num("boss.shatter_speed"), DataDB.num("boss.shatter_life_s"))
+	burst(world_pos, Color(1.0, 0.85, 0.5), floori(count * 0.5), DataDB.num("boss.shatter_speed") * 0.6, DataDB.num("boss.shatter_life_s"))
 
 
 func _process(delta: float) -> void:

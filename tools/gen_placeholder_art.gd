@@ -29,6 +29,7 @@ const ICONS := {
 	"crit": ["...k....", "...k....", "kkkkkkk.", ".kkkkk..", "..kkk...", ".kk.kk..", ".k...k..", "........"],
 	"elevator": [".b...b..", ".bbbbb..", ".b...b..", ".bbbbb..", ".b...b..", ".bbbbb..", ".b...b..", ".b...b.."],
 	"chain": ["....k...", "...k....", "..kkkk..", "....k...", "...k....", "..kkkk..", "....k...", "...k...."],
+	"mushroom": ["..cccc..", ".cwccwc.", "cccccccc", "cwcccwcc", "..wwww..", "...ww...", "...ww...", "..wwww.."],
 	"gate": ["...w....", "...w....", "...w....", ".wwwww..", "..www...", "...w....", "gggggggg", "gdgdgdgd"],
 }
 
@@ -46,6 +47,12 @@ func _init() -> void:
 		_save(_block(c, hash(str(ore["id"]))), str(ore["block_texture_path"]))
 		_save(_pickup(c), str(ore["pickup_texture_path"]))
 	_save(_peg(), "res://art/blocks/peg.png")
+	_save(_mushroom(), "res://art/blocks/mushroom.png")
+	var shafts: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/shafts.json"))
+	for entry: Variant in shafts:
+		var shaft: Dictionary = entry
+		var cells: Array = shaft["boss_size_cells"]
+		_save(_boss(int(cells[0]) * 16, int(cells[1]) * 16, Color.html(str(shaft["boss_color"])), int(shaft["id"])), str(shaft["boss_texture_path"]))
 	_save(_cracks(1), "res://art/blocks/crack_1.png")
 	_save(_cracks(2), "res://art/blocks/crack_2.png")
 	_save(_ember_core(), "res://art/embers/ember_core.png")
@@ -124,6 +131,49 @@ func _peg() -> Image:
 			elif Vector2(x, y).distance_to(Vector2(6, 6)) < 1.6:
 				col = Color(0.95, 1.0, 1.0)
 			img.set_pixel(x, y, col)
+	return img
+
+
+## A glowing teal mushroom cap on a pale stem, ~12 px wide, sitting on the cell's bottom edge.
+func _mushroom() -> Image:
+	var img := _new(16, 16)
+	var cap := Color(0.35, 0.85, 0.78)
+	for y in 16:
+		for x in 16:
+			var p := Vector2(x, y)
+			var in_cap := y >= 3 and y <= 8 and Vector2((x - 7.5) / 6.0, (y - 8.0) / 5.0).length() <= 1.0
+			var in_stem := y >= 9 and y <= 14 and absf(x - 7.5) <= 1.6
+			if in_cap:
+				var col := cap
+				if y == 8 or Vector2((x - 7.5) / 6.0, (y - 8.0) / 5.0).length() > 0.82:
+					col = cap.darkened(0.35)
+				if p.distance_to(Vector2(5, 5)) < 1.2 or p.distance_to(Vector2(10, 6)) < 1.0:
+					col = Color(0.92, 1.0, 0.95)
+				img.set_pixel(x, y, col)
+			elif in_stem:
+				img.set_pixel(x, y, Color(0.9, 0.86, 0.76) if absf(x - 7.5) < 1.0 else Color(0.7, 0.66, 0.58))
+	return img
+
+
+## A cluster of tall glowing crystal shards filling a w x h box.
+func _boss(w: int, h: int, c: Color, s: int) -> Image:
+	var img := _new(w, h)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = s * 31
+	var shards := 7
+	for k in shards:
+		var cx := w * (0.12 + 0.76 * k / float(shards - 1)) + rng.randf_range(-3.0, 3.0)
+		var half_w := rng.randf_range(w * 0.07, w * 0.11)
+		var top := h * (0.08 + 0.45 * absf(k - (shards - 1) * 0.5) / ((shards - 1) * 0.5)) + rng.randf_range(-4.0, 4.0)
+		var tip := half_w * 1.6
+		for y in range(maxi(int(top), 0), h):
+			var width := half_w if y > top + tip else half_w * (y - top) / tip
+			for x in range(maxi(int(cx - width), 0), mini(int(cx + width) + 1, w)):
+				var u := (x - (cx - width)) / maxf(width * 2.0, 1.0)
+				var col := c.lightened(0.35 * (1.0 - u)).darkened(0.25 * float(y) / h)
+				if absf(x - cx) >= width - 1.0:
+					col = c.darkened(0.45)
+				img.set_pixel(x, y, col)
 	return img
 
 

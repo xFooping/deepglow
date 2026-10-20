@@ -2,11 +2,14 @@ extends Node2D
 ## One day of mining: builds today's shaft, wires the systems together and runs the end-of-day flow.
 
 const DAY_END_PANEL := preload("res://scenes/ui/DayEndPanel.tscn")
+const BOSS_CRYSTAL := preload("res://scenes/gameplay/BossCrystal.tscn")
 
 var day_over: bool = false
 
 var _generate_ahead: float
 var _free_behind: float
+var _reached_chamber: bool = false
+var _celebrating: bool = false
 
 @onready var ambient: CanvasModulate = $Ambient
 @onready var backdrop: ShaftBackdrop = $Backdrop
@@ -28,16 +31,21 @@ func _ready() -> void:
 
 	GameState.start_day()
 	shaft.setup(GameState.current_shaft, GameState.current_seed)
-	camera_rig.setup(shaft, GameState.start_depth_m * shaft.cell_px)
+	if not GameState.is_boss_defeated(shaft.shaft_id):
+		shaft.spawn_boss(BOSS_CRYSTAL.instantiate())
+	# Elevator: the keeper starts at the chosen depth (the camera clamps so the chamber stays framed).
+	camera_rig.setup(shaft, GameState.start_depth_m * shaft.cell_px - DataDB.num("camera.keeper_offset_px"))
 	shaft.ensure_generated_to(camera_rig.bottom() + _generate_ahead)
 	backdrop.setup(shaft, camera_rig)
 	embers.setup(shaft, camera_rig, GameState.current_seed)
-	hud.setup(shaft, embers)
+	hud.setup(shaft, embers, camera_rig)
 	pickups.setup(shaft, camera_rig, player_input, hud)
 	keeper.setup(shaft, camera_rig, embers, player_input)
 	cursor_view.setup(player_input)
 	ambient.color = Color.html(str(shaft.data["palette"].get("ambient", "#ffffff")))
 	pickups.all_collected.connect(_on_pickups_banked)
+	Events.boss_defeated.connect(_on_boss_defeated)
+	Events.boss_shattered.connect(_on_boss_shattered)
 	print("Day %d: shaft %d, seed %d" % [GameState.day_count, GameState.current_shaft, GameState.current_seed])
 
 
@@ -46,7 +54,9 @@ func _physics_process(delta: float) -> void:
 		return
 	if not embers.active.is_empty():
 		camera_rig.follow(embers.deepest_y, delta)
-		GameState.record_depth(floori(embers.deepest_y / shaft.cell_px))
+		GameState.record_depth(mini(floori(embers.deepest_y / shaft.cell_px), shaft.boss_row))
+		if not _reached_chamber and embers.deepest_y >= shaft.boss_y():
+			_on_chamber_reached()
 	shaft.ensure_generated_to(camera_rig.bottom() + _generate_ahead)
 	shaft.free_above(camera_rig.top - _free_behind)
 	if embers.supply <= 0 and embers.active.is_empty():
@@ -59,6 +69,33 @@ func _begin_day_end() -> void:
 	pickups.collect_all_to_hud()
 
 
+## Counted once per day. The third time without a win unlocks an elevator stop at the chamber.
+func _on_chamber_reached() -> void:
+	_reached_chamber = true
+	Events.boss_chamber_reached.emit(shaft.shaft_id)
+	if GameState.record_boss_reach(shaft.shaft_id):
+		AudioManager.play("elevator_unlock")
+		Events.toast_requested.emit("Elevator to the Crystal unlocked!")
+
+
+func _on_boss_shattered(_world_pos: Vector2, _color: Color) -> void:
+	camera_rig.bump(DataDB.num("boss.camera_bump_px"), DataDB.num("boss.camera_bump_s"))
+
+
+## After a short celebration the day ends normally; embers still in play burn out.
+func _on_boss_defeated(_shaft_id: int) -> void:
+	if _celebrating:
+		return
+	_celebrating = true
+	keeper.enabled = false
+	Events.toast_requested.emit("%s's crystal shattered!" % str(shaft.data["display_name"]))
+	await get_tree().create_timer(DataDB.num("boss.celebration_s"), false, true).timeout
+	if not is_inside_tree() or day_over:
+		return
+	embers.set_supply(0)
+	embers.burn_out_all()
+
+
 func _on_pickups_banked() -> void:
 	for n: Node in [embers, pickups, keeper, fx, backdrop]:
 		n.process_mode = Node.PROCESS_MODE_DISABLED
@@ -68,6 +105,9 @@ func _on_pickups_banked() -> void:
 		"shaft": GameState.current_shaft,
 		"ore": GameState.day_ore.duplicate(),
 		"max_depth_m": GameState.day_max_depth_m,
+		"reached_chamber": _reached_chamber,
+		"boss_damage": GameState.day_boss_damage,
+		"boss_defeated": GameState.day_boss_defeated,
 	}
 	var panel: DayEndPanel = DAY_END_PANEL.instantiate()
 	add_child(panel)
@@ -86,6 +126,8 @@ func debug_info() -> Dictionary:
 		"depth_m": GameState.day_max_depth_m,
 		"camera_y": camera_rig.top,
 		"chunks": shaft.chunk_count(),
+		"shaft": shaft.shaft_id,
+		"boss_hp": shaft.boss.hp if shaft.boss else 0,
 	}
 
 

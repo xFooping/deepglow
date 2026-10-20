@@ -54,6 +54,8 @@ var _crit_mult: int
 var _min_alpha: float
 var _crit_chance: float
 var _chain_chance: float
+var _mushroom_restitution: float
+var _mushroom_nudge: float
 
 
 func setup(shaft: Shaft, camera: CameraRig, day_seed: int) -> void:
@@ -64,6 +66,7 @@ func setup(shaft: Shaft, camera: CameraRig, day_seed: int) -> void:
 	_max_speed = DataDB.num("physics.max_speed")
 	_block_restitution = DataDB.num("physics.block_restitution")
 	_peg_restitution = DataDB.num("physics.peg_restitution")
+	_mushroom_nudge = DataDB.num("twists.mushroom_nudge_speed")
 	_wall_restitution = DataDB.num("physics.wall_restitution")
 	_stuck_speed = DataDB.num("physics.stuck_speed_threshold")
 	_stuck_limit = DataDB.num("physics.stuck_time_to_burnout")
@@ -96,6 +99,7 @@ func setup(shaft: Shaft, camera: CameraRig, day_seed: int) -> void:
 func _cache_stats() -> void:
 	_crit_chance = Stats.get_f("crit_chance")
 	_chain_chance = Stats.get_f("chain_spark_chance")
+	_mushroom_restitution = Stats.get_f("mushroom_restitution")
 
 
 ## Launches one ember from the day's supply.
@@ -135,11 +139,11 @@ func overlaps_solid(p: Vector2, ignore_blocks: bool = false) -> bool:
 			var kind := _shaft.kind_at(col, row)
 			if kind == Shaft.Kind.EMPTY:
 				continue
-			if kind == Shaft.Kind.PEG:
+			if kind == Shaft.Kind.PEG or kind == Shaft.Kind.MUSHROOM:
 				if not ignore_blocks and p.distance_squared_to(_shaft.cell_center(Vector2i(col, row))) < (_radius + _peg_radius) ** 2:
 					return true
 				continue
-			if ignore_blocks and kind != Shaft.Kind.FLOOR:
+			if ignore_blocks and kind != Shaft.Kind.FLOOR and kind != Shaft.Kind.BOSS:
 				continue
 			var mn := Vector2(col * cell, row * cell)
 			if p.distance_squared_to(p.clamp(mn, mn + Vector2(cell, cell))) < _radius * _radius:
@@ -220,7 +224,7 @@ func _collide(e: Ember) -> void:
 				continue
 			var pen := 0.0
 			var normal := Vector2.UP
-			if kind == Shaft.Kind.PEG:
+			if kind == Shaft.Kind.PEG or kind == Shaft.Kind.MUSHROOM:
 				if e.phasing:
 					continue
 				var d := e.pos - _shaft.cell_center(Vector2i(col, row))
@@ -233,7 +237,7 @@ func _collide(e: Ember) -> void:
 					normal = d / dist
 				pen = reach - dist
 			else:
-				# Blocks and the floor are solid grid cells (circle vs AABB).
+				# Blocks, the boss and the floor are solid grid cells (circle vs AABB).
 				var mn := Vector2(col * cell, row * cell)
 				var d := e.pos - e.pos.clamp(mn, mn + Vector2(cell, cell))
 				var dist2 := d.length_squared()
@@ -270,12 +274,23 @@ func _collide(e: Ember) -> void:
 		_bounce(e, best_normal, _peg_restitution)
 		AudioManager.play("ember_bounce_peg")
 		return
+	if best_kind == Shaft.Kind.MUSHROOM:
+		# Springy: gains a little speed and gets nudged sideways, away from the cap's center.
+		_bounce(e, best_normal, _mushroom_restitution)
+		var side := signf(best_normal.x) if absf(best_normal.x) > 0.05 else (1.0 if _rng.randf() < 0.5 else -1.0)
+		e.vel.x += side * _mushroom_nudge
+		_shaft.squash_mushroom(best_cell)
+		return
 	_bounce(e, best_normal, _block_restitution)
 	# A short per-ember hit cooldown stops a settled ember from spending its durability 60 times a
 	# second; it grinds through the block at a steady rate instead of dying stuck on top of it.
-	if best_kind == Shaft.Kind.BLOCK and -vn >= _min_hit_speed and e.hit_cooldown <= 0.0:
+	var hittable := best_kind == Shaft.Kind.BLOCK or best_kind == Shaft.Kind.BOSS
+	if hittable and -vn >= _min_hit_speed and e.hit_cooldown <= 0.0:
 		e.hit_cooldown = _hit_cooldown
-		_hit_block(e, best_cell)
+		if best_kind == Shaft.Kind.BLOCK:
+			_hit_block(e, best_cell)
+		else:
+			_hit_boss(e)
 
 
 func _bounce(e: Ember, normal: Vector2, restitution: float) -> void:
@@ -293,6 +308,14 @@ func _hit_block(e: Ember, cell: Vector2i) -> void:
 		var next := _shaft.random_adjacent_block(cell, _rng)
 		if next.x >= 0:
 			_shaft.hit_block(next, e.damage, false)
+
+
+## Boss hits work like block hits: ember damage (crits too), 1 durability.
+func _hit_boss(e: Ember) -> void:
+	var crit := _rng.randf() < _crit_chance
+	e.durability -= 1
+	e.stuck_time = 0.0
+	_shaft.hit_boss(e.damage * (_crit_mult if crit else 1), crit)
 
 
 func _burn_out(i: int) -> void:

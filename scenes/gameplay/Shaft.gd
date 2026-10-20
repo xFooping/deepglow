@@ -3,11 +3,12 @@ extends Node2D
 ## Today's shaft as a grid of cells. Generates chunks ahead of the camera and frees them behind it.
 ## Cell data lives in ShaftChunk packed arrays; blocks, pegs and cracks are drawn by TileMapLayers
 ## that are updated cell by cell when something breaks.
-## 1 row = 1 meter. Phase 1 has no boss chamber: the shaft ends in an indestructible floor at boss depth.
+## 1 row = 1 meter. Below boss depth is an open chamber holding the boss crystal, then an indestructible floor.
 
-enum Kind { EMPTY, BLOCK, PEG, SPECIAL, FLOOR }
+enum Kind { EMPTY, BLOCK, PEG, SPECIAL, FLOOR, MUSHROOM, BOSS }
 
 const PEG_TEXTURE := "res://art/blocks/peg.png"
+const MUSHROOM_TEXTURE := "res://art/blocks/mushroom.png"
 const CRACK_TEXTURES: Array[String] = ["res://art/blocks/crack_1.png", "res://art/blocks/crack_2.png"]
 
 var shaft_id: int = 1
@@ -16,6 +17,9 @@ var columns: int = 24
 var cell_px: int = 16
 var chunk_rows: int = 32
 var floor_row: int = 0
+var boss_row: int = 0             ## First row of the boss chamber (= boss depth in meters).
+var boss: BossCrystal              ## Null once defeated, or on a day it isn't spawned.
+var boss_cells := Rect2i()
 var width_px: float = 0.0
 var floor_y: float = 0.0
 var ore_ids: Array[String] = []
@@ -24,12 +28,14 @@ var ore_colors := PackedColorArray()
 var _ore_max_hp := PackedInt32Array()
 var _block_sources := PackedInt32Array()  ## ore index -> TileSet source id
 var _peg_source: int = -1
+var _mushroom_source: int = -1
 var _crack_sources := PackedInt32Array()
 var _crack_stage_1: float = 0.66
 var _crack_stage_2: float = 0.33
 var _blocks: TileMapLayer
 var _cracks: TileMapLayer
 var _flash: ShaftFlash
+var _squash: MushroomSquash
 
 var _chunks: Array = []  ## chunk index -> ShaftChunk, or null once freed
 var _freed_through: int = -1
@@ -42,7 +48,8 @@ func setup(id: int, day_seed: int) -> void:
 	columns = DataDB.integer("grid.columns")
 	cell_px = DataDB.integer("grid.cell_px")
 	chunk_rows = DataDB.integer("grid.chunk_rows")
-	floor_row = int(data["boss_depth_m"])
+	boss_row = int(data["boss_depth_m"])
+	floor_row = boss_row + int(data["boss_chamber_rows"])
 	width_px = columns * cell_px
 	floor_y = floor_row * cell_px
 	_crack_stage_1 = DataDB.num("blocks.crack_stage_1")
@@ -57,6 +64,7 @@ func setup(id: int, day_seed: int) -> void:
 		_ore_max_hp.append(int(ore["hp"]))
 		_block_sources.append(_add_source(tile_set, DataDB.texture(str(ore["block_texture_path"])), color))
 	_peg_source = _add_source(tile_set, DataDB.texture(PEG_TEXTURE), Color(0.7, 0.95, 1.0))
+	_mushroom_source = _add_source(tile_set, DataDB.texture(MUSHROOM_TEXTURE), Color(0.4, 0.9, 0.8))
 	for path in CRACK_TEXTURES:
 		_crack_sources.append(_add_source(tile_set, DataDB.texture(path), Color(0, 0, 0, 0.4)))
 
@@ -69,8 +77,11 @@ func setup(id: int, day_seed: int) -> void:
 	_flash = ShaftFlash.new()
 	_flash.cell_px = cell_px
 	add_child(_flash)
+	_squash = MushroomSquash.new()
+	_squash.setup(self, DataDB.texture(MUSHROOM_TEXTURE))
+	add_child(_squash)
 
-	_generator = ShaftGenerator.new(data, day_seed, columns, chunk_rows, DataDB.integer("grid.top_empty_rows"), floor_row)
+	_generator = ShaftGenerator.new(data, day_seed, columns, chunk_rows, DataDB.integer("grid.top_empty_rows"), boss_row)
 
 
 ## One single-tile atlas per texture, so any PNG can be swapped without touching code.
@@ -121,6 +132,9 @@ func kind_at(col: int, row: int) -> int:
 		return Kind.FLOOR
 	if row < 0 or col < 0 or col >= columns:
 		return Kind.EMPTY
+	if boss and row >= boss_cells.position.y and boss_cells.has_point(Vector2i(col, row)):
+		if boss.is_solid(Vector2i(col, row) - boss_cells.position):
+			return Kind.BOSS
 	@warning_ignore("integer_division")
 	var ci := row / chunk_rows
 	if ci >= _chunks.size():
@@ -153,6 +167,37 @@ func hit_block(cell: Vector2i, damage: int, crit: bool) -> bool:
 	return true
 
 
+## Places today's boss crystal on the chamber floor, centered. Skipped once that boss is beaten.
+func spawn_boss(crystal: BossCrystal) -> void:
+	var size_cells: Array = data["boss_size_cells"]
+	var w := int(size_cells[0])
+	var h := int(size_cells[1])
+	@warning_ignore("integer_division")
+	boss_cells = Rect2i((columns - w) / 2, floor_row - h, w, h)
+	boss = crystal
+	crystal.setup(shaft_id, Rect2(Vector2(boss_cells.position * cell_px), Vector2(boss_cells.size * cell_px)), cell_px)
+	crystal.defeated.connect(_on_boss_defeated)
+	add_child(crystal)
+
+
+func hit_boss(damage: int, crit: bool) -> void:
+	if boss:
+		boss.hit(damage, crit)
+
+
+func boss_y() -> float:
+	return boss_row * cell_px
+
+
+func _on_boss_defeated() -> void:
+	boss = null
+
+
+## Plays the squash on a mushroom peg that was just bounced off.
+func squash_mushroom(cell: Vector2i) -> void:
+	_squash.squash(cell)
+
+
 ## A random block among the 4 neighbours, or (-1, -1) if there is none.
 func random_adjacent_block(cell: Vector2i, rng: RandomNumberGenerator) -> Vector2i:
 	var options: Array[Vector2i] = []
@@ -178,6 +223,16 @@ func _paint_chunk(chunk: ShaftChunk) -> void:
 				_blocks.set_cell(c, _block_sources[chunk.ore[i]], Vector2i.ZERO)
 			Kind.PEG:
 				_blocks.set_cell(c, _peg_source, Vector2i.ZERO)
+			Kind.MUSHROOM:
+				_blocks.set_cell(c, _mushroom_source, Vector2i.ZERO)
+
+
+## Hides a mushroom's tile while MushroomSquash draws it squashed, then restores it.
+func set_mushroom_tile_visible(cell: Vector2i, shown: bool) -> void:
+	if shown:
+		_blocks.set_cell(cell, _mushroom_source, Vector2i.ZERO)
+	else:
+		_blocks.erase_cell(cell)
 
 
 func _update_crack(cell: Vector2i, hp_frac: float) -> void:
