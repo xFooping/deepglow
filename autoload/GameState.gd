@@ -24,6 +24,9 @@ var current_seed: int = 0
 var start_depth_m: int = 0
 var day_ore: Dictionary = {}
 var day_max_depth_m: int = 0
+var day_boss_damage: int = 0
+var day_boss_defeated: bool = false
+var forced_start_depth_m: int = -1  ## Cheat panel "reach the boss": overrides the next day's start depth.
 
 
 func _ready() -> void:
@@ -62,11 +65,85 @@ func reset_to_new_game() -> void:
 func start_day() -> void:
 	day_count += 1
 	current_shaft = int(last_pick.get("shaft", 1))
-	start_depth_m = 0  # Phase 2: comes from the pre-day picker
+	if not unlocked_shafts.has(current_shaft) or not DataDB.shafts.has(current_shaft):
+		current_shaft = int(unlocked_shafts[0])
+	start_depth_m = int(last_pick.get("depth_m", 0))
+	if not available_start_depths(current_shaft).has(start_depth_m):
+		start_depth_m = 0
+	if forced_start_depth_m >= 0:
+		start_depth_m = forced_start_depth_m
+		forced_start_depth_m = -1
 	current_seed = randi()
 	day_ore = {}
 	day_max_depth_m = start_depth_m
+	day_boss_damage = 0
+	day_boss_defeated = false
 	Events.day_started.emit(day_count, current_seed)
+
+
+# --- shafts, elevator and bosses ---------------------------------------------
+
+## Start depths the picker may offer for a shaft: the top, plus every unlocked elevator stop
+## the player has personally reached in that shaft.
+func available_start_depths(shaft_id: int) -> Array[int]:
+	var out: Array[int] = [0]
+	var reached := int(max_depth_by_shaft.get(str(shaft_id), 0))
+	for d: Variant in elevator_stops.get(str(shaft_id), []):
+		var depth := int(d)
+		if depth > 0 and depth <= reached and not out.has(depth):
+			out.append(depth)
+	out.sort()
+	return out
+
+
+## The pre-day picker only appears when there's an actual choice to make.
+func needs_day_picker() -> bool:
+	if unlocked_shafts.size() > 1:
+		return true
+	for sid: Variant in unlocked_shafts:
+		if available_start_depths(int(sid)).size() > 1:
+			return true
+	return false
+
+
+func is_boss_defeated(shaft_id: int) -> bool:
+	return defeated_bosses.has(shaft_id)
+
+
+## Counts a day that reached the boss chamber. Returns true when this unlocks the boss elevator.
+func record_boss_reach(shaft_id: int) -> bool:
+	if is_boss_defeated(shaft_id):
+		return false
+	var key := str(shaft_id)
+	var count := int(boss_reach_by_shaft.get(key, 0)) + 1
+	boss_reach_by_shaft[key] = count
+	if count != DataDB.integer("boss.reaches_for_elevator"):
+		return false
+	_add_elevator_stop(shaft_id, int(DataDB.shafts[shaft_id]["boss_depth_m"]))
+	return true
+
+
+## Marks the boss beaten and unlocks the next shaft in shafts.json, if there is one.
+func defeat_boss(shaft_id: int) -> void:
+	if not defeated_bosses.has(shaft_id):
+		defeated_bosses.append(shaft_id)
+	var i := DataDB.shaft_order.find(shaft_id)
+	if i >= 0 and i + 1 < DataDB.shaft_order.size():
+		var next := DataDB.shaft_order[i + 1]
+		if not unlocked_shafts.has(next):
+			unlocked_shafts.append(next)
+	day_boss_defeated = true
+	Events.boss_defeated.emit(shaft_id)
+	Events.ores_changed.emit()
+
+
+func _add_elevator_stop(shaft_id: int, depth: int) -> void:
+	var key := str(shaft_id)
+	var stops: Array = elevator_stops.get(key, [])
+	if not stops.has(depth):
+		stops.append(depth)
+		stops.sort()
+	elevator_stops[key] = stops
 
 
 # --- ore ---------------------------------------------------------------------
@@ -171,13 +248,7 @@ func _apply_special_effects(up: Dictionary) -> void:
 	for eff: Variant in up.get("effects", []):
 		var e: Dictionary = eff
 		if str(e.get("type", "")) == "unlock_elevator_stop":
-			var key := str(int(e.get("shaft", 1)))
-			var stops: Array = elevator_stops.get(key, [])
-			var depth := int(e.get("depth_m", 0))
-			if not stops.has(depth):
-				stops.append(depth)
-				stops.sort()
-			elevator_stops[key] = stops
+			_add_elevator_stop(int(e.get("shaft", 1)), int(e.get("depth_m", 0)))
 
 
 # --- save data ---------------------------------------------------------------

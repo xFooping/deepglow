@@ -3,7 +3,11 @@
 		"id": 1,
 		"display_name": "The Shallows",
 		"boss_depth_m": 150,
-		"boss_hp": 8000,
+		"boss_hp": 30000,
+		"boss_chamber_rows": 12,
+		"boss_size_cells": [6, 6],
+		"boss_texture_path": "res://art/bosses/shaft_1.png",
+		"boss_color": "#f0b46a",
 		"ore_bands": [
 			{ "ore_id": "dirt", "from_m": 0, "to_m": 40, "weight": 10 },
 			{ "ore_id": "dirt", "from_m": 40, "to_m": 150, "weight": 5 },
@@ -24,5 +28,35 @@
 		"chute_wander_every_rows": 4,
 		"palette": { "rock_tint": "#6a5d82", "background": "#241c2e", "ambient": "#e2dcf2" },
 		"twist_id": "none"
+	},
+	{
+		"id": 2,
+		"display_name": "Iron Veins",
+		"boss_depth_m": 250,
+		"boss_hp": 300000,
+		"boss_chamber_rows": 12,
+		"boss_size_cells": [7, 6],
+		"boss_texture_path": "res://art/bosses/shaft_2.png",
+		"boss_color": "#8fb4d8",
+		"ore_bands": [
+			{ "ore_id": "dirt", "from_m": 0, "to_m": 50, "weight": 4 },
+			{ "ore_id": "coal", "from_m": 0, "to_m": 100, "weight": 4 },
+			{ "ore_id": "copper", "from_m": 10, "to_m": 140, "weight": 4 },
+			{ "ore_id": "iron", "from_m": 20, "to_m": 250, "weight": 6 },
+			{ "ore_id": "silver", "from_m": 120, "to_m": 250, "weight": 3 }
+		],
+		"fill_density": 0.7,
+		"peg_density": 0.06,
+		"special_density": 0.4,
+		"pockets_per_chunk": 4,
+		"pocket_min_radius": 1.0,
+		"pocket_max_radius": 2.5,
+		"chutes_per_chunk": 1.5,
+		"chute_min_len": 6,
+		"chute_max_len": 18,
+		"chute_wide_chance": 0.5,
+		"chute_wander_every_rows": 4,
+		"palette": { "rock_tint": "#52637a", "background": "#1a2230", "ambient": "#d6e4ee" },
+		"twist_id": "mushroom_pegs"
 	}
 ]
