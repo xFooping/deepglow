@@ -1,0 +1,136 @@
+{
+	"grid": {
+		"columns": 24,
+		"cell_px": 16,
+		"chunk_rows": 32,
+		"top_empty_rows": 3,
+		"generate_ahead_px": 256,
+		"free_behind_px": 64,
+		"floor_rows_shown": 3
+	},
+	"physics": {
+		"gravity": 600,
+		"max_speed": 520,
+		"block_restitution": 0.55,
+		"peg_restitution": 0.75,
+		"wall_restitution": 0.7,
+		"stuck_speed_threshold": 8,
+		"stuck_time_to_burnout": 1.5,
+		"ember_radius": 3,
+		"peg_radius": 5,
+		"bounce_jitter_deg": 3,
+		"min_hit_speed": 0,
+		"hit_cooldown_s": 0.08,
+		"substep_fraction_of_radius": 0.9
+	},
+	"aim": {
+		"min_angle_deg": 10,
+		"max_angle_deg": 170,
+		"aim_guide_length_px": 60,
+		"aim_guide_dot_spacing_px": 5,
+		"aim_guide_sim_step_s": 0.008
+	},
+	"combat": {
+		"crit_multiplier": 3,
+		"active_ember_cap": 300,
+		"ember_min_alpha": 0.45
+	},
+	"blocks": {
+		"crack_stage_1": 0.66,
+		"crack_stage_2": 0.33
+	},
+	"camera": {
+		"leash_px": 200,
+		"follow_screen_fraction": 0.55,
+		"follow_speed": 3.0,
+		"keeper_offset_px": 22
+	},
+	"pickups": {
+		"spawn_speed_min": 30,
+		"spawn_speed_max": 80,
+		"gravity": 25,
+		"damping": 2.5,
+		"max_fall_speed": 14,
+		"magnet_speed": 360,
+		"magnet_accel": 1400,
+		"collect_distance_px": 4,
+		"offscreen_margin_px": 4,
+		"merge_threshold": 1500,
+		"merge_radius_px": 6,
+		"merge_scan_recent": 128,
+		"max_spawned_per_block": 5,
+		"bob_amplitude_px": 1.0,
+		"bob_speed": 3.0,
+		"day_end_fly_s": 0.45,
+		"day_end_stagger_s": 0.25
+	},
+	"fx": {
+		"max_particles": 800,
+		"chip_count": 6,
+		"chip_speed": 70,
+		"chip_life_s": 0.45,
+		"spark_count": 5,
+		"spark_speed": 40,
+		"spark_life_s": 0.35,
+		"crit_spark_count": 4,
+		"particle_gravity": 220
+	},
+	"ui": {
+		"panel_slide_s": 0.35,
+		"panel_dim_alpha": 0.35,
+		"hud_ember_icon_max": 10,
+		"tree_zoom_min": 0.5,
+		"tree_zoom_max": 2.5,
+		"tree_zoom_step": 1.15,
+		"tree_node_px": 36,
+		"tree_drag_threshold_px": 4,
+		"tree_bounds_margin_px": 120,
+		"tree_pop_s": 0.3,
+		"tree_flow_s": 0.5
+	},
+	"save": {
+		"purchase_debounce_s": 1.0
+	},
+	"audio": {
+		"pitch_jitter": 0.06,
+		"pickup_pitch_step": 0.05,
+		"pickup_pitch_max": 1.8,
+		"pickup_streak_reset_s": 0.5,
+		"max_voices_per_sound": 4
+	},
+	"stats": {
+		"ember_count": 3,
+		"ember_damage": 1,
+		"ember_durability": 20,
+		"fire_cooldown": 1.0,
+		"launch_speed": 260,
+		"crit_chance": 0,
+		"magnet_radius": 20,
+		"offscreen_bank_rate": 0.25,
+		"auto_collect": false,
+		"artifact_chance": 0.0005,
+		"chain_spark_chance": 0,
+		"prism_split_chance": 0.25,
+		"water_drain_mult": 1.0,
+		"kindling_burst_mult": 3.0
+	},
+	"ore_yield_base": 1,
+	"stat_limits": {
+		"fire_cooldown": { "min": 0.05 },
+		"offscreen_bank_rate": { "max": 1.0 },
+		"crit_chance": { "max": 1.0 },
+		"chain_spark_chance": { "max": 1.0 },
+		"ember_count": { "min": 1 },
+		"ember_durability": { "min": 1 }
+	},
+	"debug": {
+		"bench_embers": 300,
+		"bench_pickups": 2000,
+		"bench_seconds": 8,
+		"autoplay_menu_overhead_s": 6,
+		"autoplay_cursor_speed": 260,
+		"autoplay_aim_radius_px": 60,
+		"autoplay_max_days": 400,
+		"autoplay_goal_upgrade": "gate_iron"
+	}
+}

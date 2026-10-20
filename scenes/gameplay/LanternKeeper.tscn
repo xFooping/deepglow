@@ -1,0 +1,12 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scenes/gameplay/LanternKeeper.gd" id="1"]
+
+[node name="LanternKeeper" type="Node2D"]
+script = ExtResource("1")
+
+[node name="Body" type="Sprite2D" parent="."]
+position = Vector2(0, -6)
+
+[node name="Lantern" type="Sprite2D" parent="."]
+position = Vector2(0, 10)

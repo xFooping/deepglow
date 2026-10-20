@@ -1,0 +1,28 @@
+[
+	{
+		"id": 1,
+		"display_name": "The Shallows",
+		"boss_depth_m": 150,
+		"boss_hp": 8000,
+		"ore_bands": [
+			{ "ore_id": "dirt", "from_m": 0, "to_m": 40, "weight": 10 },
+			{ "ore_id": "dirt", "from_m": 40, "to_m": 150, "weight": 5 },
+			{ "ore_id": "coal", "from_m": 15, "to_m": 70, "weight": 3 },
+			{ "ore_id": "coal", "from_m": 70, "to_m": 150, "weight": 4 },
+			{ "ore_id": "copper", "from_m": 70, "to_m": 150, "weight": 3 }
+		],
+		"fill_density": 0.7,
+		"peg_density": 0.06,
+		"special_density": 0.0,
+		"pockets_per_chunk": 4,
+		"pocket_min_radius": 1.0,
+		"pocket_max_radius": 2.5,
+		"chutes_per_chunk": 1.5,
+		"chute_min_len": 6,
+		"chute_max_len": 18,
+		"chute_wide_chance": 0.5,
+		"chute_wander_every_rows": 4,
+		"palette": { "rock_tint": "#6a5d82", "background": "#241c2e", "ambient": "#e2dcf2" },
+		"twist_id": "none"
+	}
+]
