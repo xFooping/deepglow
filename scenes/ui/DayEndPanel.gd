@@ -3,6 +3,7 @@ extends CanvasLayer
 ## Slides into the middle of the frozen gameplay view with the day's summary.
 
 const SKILL_TREE_SCENE := "res://scenes/skilltree/SkillTree.tscn"
+const CREDITS_SCENE := "res://scenes/credits/Credits.tscn"
 
 var _dim: ColorRect
 var _slider: Control
@@ -66,6 +67,25 @@ func show_summary(summary: Dictionary) -> void:
 	var buttons := HBoxContainer.new()
 	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
 	box.add_child(buttons)
+	if bool(summary.get("boss_defeated", false)) and GameState.is_final_shaft(int(summary.get("shaft", 0))):
+		# The final crystal: the only way on is the credits.
+		var credits := Button.new()
+		credits.text = "Roll Credits"
+		credits.pressed.connect(_on_credits)
+		buttons.add_child(credits)
+	else:
+		_add_day_buttons(buttons)
+
+	var slide_s := DataDB.num("ui.panel_slide_s")
+	var view_h := get_viewport().get_visible_rect().size.y
+	_slider.position.y = view_h
+	var tw := create_tween().set_parallel(true)
+	tw.tween_property(_slider, "position:y", 0.0, slide_s).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(_dim, "color:a", DataDB.num("ui.panel_dim_alpha"), slide_s)
+	AudioManager.play("panel_slide")
+
+
+func _add_day_buttons(buttons: HBoxContainer) -> void:
 	var again := Button.new()
 	again.text = "Mine Again"
 	again.pressed.connect(_on_mine_again)
@@ -75,13 +95,10 @@ func show_summary(summary: Dictionary) -> void:
 	tree_button.pressed.connect(_on_skill_tree)
 	buttons.add_child(tree_button)
 
-	var slide_s := DataDB.num("ui.panel_slide_s")
-	var view_h := get_viewport().get_visible_rect().size.y
-	_slider.position.y = view_h
-	var tw := create_tween().set_parallel(true)
-	tw.tween_property(_slider, "position:y", 0.0, slide_s).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	tw.tween_property(_dim, "color:a", DataDB.num("ui.panel_dim_alpha"), slide_s)
-	AudioManager.play("panel_slide")
+
+func _on_credits() -> void:
+	AudioManager.play("ui_click")
+	get_tree().change_scene_to_file(CREDITS_SCENE)
 
 
 func _text(t: String) -> Label:
