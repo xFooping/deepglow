@@ -1,0 +1,29 @@
+# Godot 4 editor cache and imported assets (regenerated on open)
+.godot/
+/android/
+
+# Godot 3 leftovers, in case anything gets ported
+.import/
+
+# Export output
+*.translation
+# export_presets.cfg is safe to commit in Godot 4.3+ (secrets live in .godot/)
+builds/
+exports/
+*.exe
+*.pck
+*.zip
+*.apk
+*.aab
+
+# Mono/C# (only if you ever add C#)
+.mono/
+data_*/
+mono_crash.*.json
+
+# OS / editor junk
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+*.tmp

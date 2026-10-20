@@ -1,0 +1,30 @@
+# Normalize text files to LF in the repo; Godot handles LF fine on Windows
+* text=auto eol=lf
+
+# Godot text formats
+*.gd text eol=lf
+*.tscn text eol=lf
+*.tres text eol=lf
+*.godot text eol=lf
+*.cfg text eol=lf
+*.import text eol=lf
+*.gdshader text eol=lf
+
+# Binary assets: no diffing, no line-ending conversion
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.svg text eol=lf
+*.wav binary
+*.ogg binary
+*.mp3 binary
+*.ttf binary
+*.otf binary
+*.glb binary
+*.blend binary
+*.res binary
+*.scn binary
+
+# Git LFS is deliberately OFF. If assets get big (>~50 MB total churn or
+# single files >10 MB), switch these lines to: filter=lfs diff=lfs merge=lfs -text
