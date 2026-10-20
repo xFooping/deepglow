@@ -21,6 +21,7 @@ const STAT_NAMES: Dictionary = {
 	"prism_split_chance": "Prism split chance",
 	"water_drain_mult": "Water drain",
 	"kindling_burst_mult": "Kindling burst",
+	"mushroom_restitution": "Mushroom bounce",
 }
 
 var debug_overrides: Dictionary = {}  ## Cheat panel values, applied last.

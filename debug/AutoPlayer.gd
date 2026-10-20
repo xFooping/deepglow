@@ -16,7 +16,8 @@ var _day_end_wait: float = -1.0
 var _cursor := Vector2.ZERO
 var _cursor_speed: float
 var _aim_radius: float
-var _goal: String
+var _goal_shaft: int
+var _gate_reported: bool = false
 
 
 func _ready() -> void:
@@ -24,11 +25,36 @@ func _ready() -> void:
 	seed(12345)
 	_cursor_speed = DataDB.num("debug.autoplay_cursor_speed")
 	_aim_radius = DataDB.num("debug.autoplay_aim_radius_px")
-	_goal = str(DataDB.val("debug.autoplay_goal_upgrade"))
+	_goal_shaft = DataDB.integer("debug.autoplay_goal_boss_shaft")
 	GameState.reset_to_new_game()
 	Stats.recompute()
 	Events.day_ended.connect(_on_day_ended)
+	Events.boss_defeated.connect(_on_boss_defeated)
 	get_tree().change_scene_to_file.call_deferred(GAMEPLAY_SCENE)
+
+
+func _on_boss_defeated(shaft_id: int) -> void:
+	print("AUTOPLAY MILESTONE boss %d defeated on day %d at %.1f minutes" % [shaft_id, GameState.day_count, sim_time / 60.0])
+
+
+## Plays the newest shaft whose crystal still stands. Goes for the crystal (elevator stop) once
+## a day's potential damage is close to its HP; otherwise mines from the deepest milestone stop.
+func _pick_day() -> void:
+	var shaft_id := int(GameState.unlocked_shafts.back())
+	for sid: Variant in GameState.unlocked_shafts:
+		if not GameState.is_boss_defeated(int(sid)):
+			shaft_id = int(sid)
+			break
+	var boss_depth := int(DataDB.shafts[shaft_id]["boss_depth_m"])
+	var depths := GameState.available_start_depths(shaft_id)
+	var potential := Stats.get_f("ember_count") * Stats.get_f("ember_durability") * Stats.get_f("ember_damage")
+	var depth := 0
+	for d in depths:
+		if d != boss_depth:
+			depth = maxi(depth, d)
+	if depths.has(boss_depth) and potential >= DataDB.num("debug.autoplay_boss_attempt_ratio") * float(DataDB.shafts[shaft_id]["boss_hp"]):
+		depth = boss_depth
+	GameState.last_pick = {"shaft": shaft_id, "depth_m": depth}
 
 
 func _physics_process(delta: float) -> void:
@@ -78,8 +104,9 @@ func _on_day_ended(summary: Dictionary) -> void:
 	var parts: PackedStringArray = []
 	for id: Variant in ore:
 		parts.append("%s=%d" % [id, int(float(ore[id]))])
-	print("AUTOPLAY day=%d t=%.1fmin depth=%dm dmg=%d dur=%d embers=%d  %s" % [
-		int(summary.get("day", 0)), sim_time / 60.0, int(summary.get("max_depth_m", 0)),
+	print("AUTOPLAY day=%d t=%.1fmin shaft=%d start=%dm depth=%dm boss_dmg=%d dmg=%d dur=%d embers=%d  %s" % [
+		int(summary.get("day", 0)), sim_time / 60.0, int(summary.get("shaft", 0)), GameState.start_depth_m,
+		int(summary.get("max_depth_m", 0)), int(summary.get("boss_damage", 0)),
 		Stats.get_i("ember_damage"), Stats.get_i("ember_durability"), Stats.get_i("ember_count"), " ".join(parts)])
 	_day_end_wait = 0.5
 
@@ -87,8 +114,11 @@ func _on_day_ended(summary: Dictionary) -> void:
 func _between_days() -> void:
 	_buy_everything_affordable()
 	sim_time += DataDB.num("debug.autoplay_menu_overhead_s")
-	if GameState.is_upgrade_visible(_goal):
-		print("AUTOPLAY GOAL '%s' visible after %d days, %.1f minutes" % [_goal, GameState.day_count, sim_time / 60.0])
+	if not _gate_reported and GameState.is_upgrade_visible("gate_iron"):
+		_gate_reported = true
+		print("AUTOPLAY MILESTONE iron gate visible on day %d at %.1f minutes" % [GameState.day_count, sim_time / 60.0])
+	if GameState.is_boss_defeated(_goal_shaft):
+		print("AUTOPLAY GOAL boss %d defeated after %d days, %.1f minutes" % [_goal_shaft, GameState.day_count, sim_time / 60.0])
 		_print_levels()
 		get_tree().quit()
 		return
@@ -97,6 +127,7 @@ func _between_days() -> void:
 		_print_levels()
 		get_tree().quit()
 		return
+	_pick_day()
 	get_tree().change_scene_to_file(GAMEPLAY_SCENE)
 
 

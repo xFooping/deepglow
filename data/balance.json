@@ -35,6 +35,22 @@
 		"active_ember_cap": 300,
 		"ember_min_alpha": 0.45
 	},
+	"boss": {
+		"reaches_for_elevator": 3,
+		"celebration_s": 1.8,
+		"camera_bump_px": 4,
+		"camera_bump_s": 0.25,
+		"shatter_particles": 60,
+		"shatter_speed": 140,
+		"shatter_life_s": 1.2,
+		"hit_flash_s": 0.05,
+		"shimmer_speed": 1.6,
+		"shimmer_amount": 0.12
+	},
+	"twists": {
+		"mushroom_nudge_speed": 45,
+		"mushroom_squash_s": 0.22
+	},
 	"blocks": {
 		"crack_stage_1": 0.66,
 		"crack_stage_2": 0.33
@@ -86,7 +102,8 @@
 		"tree_drag_threshold_px": 4,
 		"tree_bounds_margin_px": 120,
 		"tree_pop_s": 0.3,
-		"tree_flow_s": 0.5
+		"tree_flow_s": 0.5,
+		"toast_s": 2.5
 	},
 	"save": {
 		"purchase_debounce_s": 1.0
@@ -112,7 +129,8 @@
 		"chain_spark_chance": 0,
 		"prism_split_chance": 0.25,
 		"water_drain_mult": 1.0,
-		"kindling_burst_mult": 3.0
+		"kindling_burst_mult": 3.0,
+		"mushroom_restitution": 1.15
 	},
 	"ore_yield_base": 1,
 	"stat_limits": {
@@ -131,6 +149,7 @@
 		"autoplay_cursor_speed": 260,
 		"autoplay_aim_radius_px": 60,
 		"autoplay_max_days": 400,
-		"autoplay_goal_upgrade": "gate_iron"
+		"autoplay_goal_boss_shaft": 2,
+		"autoplay_boss_attempt_ratio": 2.2
 	}
 }

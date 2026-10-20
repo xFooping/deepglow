@@ -6,6 +6,7 @@ extends CanvasLayer
 const AutoPlayerScript := preload("res://debug/AutoPlayer.gd")
 const BenchScript := preload("res://debug/Bench.gd")
 const TITLE_SCENE := "res://scenes/title/Title.tscn"
+const GAMEPLAY_SCENE := "res://scenes/gameplay/Gameplay.tscn"
 
 var cheats_open: bool = false
 
@@ -35,6 +36,13 @@ func _ready() -> void:
 		if arg.begins_with("--give-ore="):
 			for o in DataDB.ores:
 				GameState.add_ore(str(o["id"]), float(arg.trim_prefix("--give-ore=")), "cheat")
+		if arg.begins_with("--shaft="):
+			var sid := int(arg.trim_prefix("--shaft="))
+			if not GameState.unlocked_shafts.has(sid):
+				GameState.unlocked_shafts.append(sid)
+			GameState.last_pick = {"shaft": sid, "depth_m": 0}
+		if arg == "--reach-boss":
+			GameState.forced_start_depth_m = int(DataDB.shafts[int(GameState.last_pick.get("shaft", 1))]["boss_depth_m"])
 		if arg.begins_with("--shots="):
 			_take_screenshots(arg.trim_prefix("--shots=").split(","))
 
@@ -80,6 +88,7 @@ func _process(_delta: float) -> void:
 		lines.append("depth %d m" % info["depth_m"])
 		lines.append("camera y %.0f" % info["camera_y"])
 		lines.append("chunks %d" % info["chunks"])
+		lines.append("shaft %d, crystal hp %d" % [info["shaft"], info["boss_hp"]])
 	_label.text = "\n".join(lines)
 
 
@@ -136,10 +145,7 @@ func _build_cheats() -> void:
 	var row4 := HBoxContainer.new()
 	box.add_child(row4)
 	row4.add_child(_button("Reset save", _on_reset_save))
-	var boss := _button("Reach the boss", _on_end_day)
-	boss.disabled = true
-	boss.tooltip_text = "Bosses arrive in Phase 2"
-	row4.add_child(boss)
+	row4.add_child(_button("Reach the boss", _on_reach_boss))
 
 
 func _spin(lo: float, hi: float, value: float) -> SpinBox:
@@ -194,6 +200,17 @@ func _on_end_day() -> void:
 	var gp := gameplay()
 	if gp:
 		gp.debug_end_day()
+
+
+## Restarts today in the current shaft with the keeper at the boss chamber.
+func _on_reach_boss() -> void:
+	var shaft_id := int(GameState.last_pick.get("shaft", 1))
+	var gp := gameplay()
+	if gp:
+		shaft_id = int(gp.shaft.shaft_id)
+	GameState.last_pick["shaft"] = shaft_id
+	GameState.forced_start_depth_m = int(DataDB.shafts[shaft_id]["boss_depth_m"])
+	get_tree().change_scene_to_file(GAMEPLAY_SCENE)
 
 
 func _on_spawn_embers() -> void:

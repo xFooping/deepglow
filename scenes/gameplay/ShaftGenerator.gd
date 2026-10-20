@@ -7,17 +7,17 @@ var _seed: int
 var _columns: int
 var _chunk_rows: int
 var _top_empty: int
-var _floor_row: int
+var _minable_end: int
 var _bands: Array[Dictionary] = []
 
 
-func _init(shaft_data: Dictionary, day_seed: int, columns: int, chunk_rows: int, top_empty_rows: int, floor_row: int) -> void:
+func _init(shaft_data: Dictionary, day_seed: int, columns: int, chunk_rows: int, top_empty_rows: int, minable_end_row: int) -> void:
 	_shaft = shaft_data
 	_seed = day_seed
 	_columns = columns
 	_chunk_rows = chunk_rows
 	_top_empty = top_empty_rows
-	_floor_row = floor_row
+	_minable_end = minable_end_row
 	for band: Variant in shaft_data.get("ore_bands", []):
 		_bands.append(band)
 
@@ -80,6 +80,9 @@ func fill(chunk: ShaftChunk, above: ShaftChunk) -> void:
 	# 4) Crystal pegs in empty cells, never adjacent to another peg.
 	var empty_fraction := maxf(1.0 - fill_density, 0.05)
 	var peg_chance := clampf(float(_shaft["peg_density"]) / empty_fraction, 0.0, 1.0)
+	# Iron Veins twist: special_density is the share of pegs that grow as bouncy mushrooms.
+	var mushrooms := str(_shaft.get("twist_id", "")) == "mushroom_pegs"
+	var mushroom_share := float(_shaft.get("special_density", 0.0))
 	for lr in _chunk_rows:
 		var row := chunk.first_row + lr
 		if not _is_minable_row(row):
@@ -90,7 +93,7 @@ func fill(chunk: ShaftChunk, above: ShaftChunk) -> void:
 				continue
 			if _peg_nearby(kinds, above, col, lr):
 				continue
-			kinds[i] = Shaft.Kind.PEG
+			kinds[i] = Shaft.Kind.MUSHROOM if mushrooms and rng.randf() < mushroom_share else Shaft.Kind.PEG
 
 	chunk.kinds = kinds
 	chunk.ore = ore
@@ -98,7 +101,7 @@ func fill(chunk: ShaftChunk, above: ShaftChunk) -> void:
 
 
 func _is_minable_row(row: int) -> bool:
-	return row >= _top_empty and row < _floor_row
+	return row >= _top_empty and row < _minable_end
 
 
 ## Integer part always, plus one more with probability equal to the fraction.
@@ -124,12 +127,16 @@ func _peg_nearby(kinds: PackedByteArray, above: ShaftChunk, col: int, lr: int) -
 				continue
 			if r < 0:
 				# Look into the last row of the chunk above, if it still exists.
-				if above != null and above.kinds[(_chunk_rows - 1) * _columns + c] == Shaft.Kind.PEG:
+				if above != null and _is_peg(above.kinds[(_chunk_rows - 1) * _columns + c]):
 					return true
 				continue
-			if kinds[r * _columns + c] == Shaft.Kind.PEG:
+			if _is_peg(kinds[r * _columns + c]):
 				return true
 	return false
+
+
+func _is_peg(kind: int) -> bool:
+	return kind == Shaft.Kind.PEG or kind == Shaft.Kind.MUSHROOM
 
 
 ## Weighted pick among the ore bands covering this row. Returns an ore index or -1.

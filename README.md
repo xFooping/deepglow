@@ -24,7 +24,8 @@ and prints clear errors for missing fields, unknown ores, broken prereqs and unk
 Command-line tools (user args go after `--`):
 
 ```
-# Balance bot: plays headless faster than real time and reports minutes to reach the iron gate
+# Balance bot: plays headless faster than real time and reports when it reaches the iron gate
+# and beats each boss (goal shaft set by debug.autoplay_goal_boss_shaft)
 Godot --headless --path . --fixed-fps 60 -- --autoplay
 
 # Performance check: keeps 300 embers + 2,000 pickups alive with vsync off and prints FPS
@@ -32,6 +33,9 @@ Godot --path . -- --bench
 
 # Screenshots at the given seconds, saved to user://shots/
 Godot --path . -- --shots=2,5,9
+
+# Jump straight to a shaft's boss chamber (combine with --shots to check the art)
+Godot --path . res://scenes/gameplay/Gameplay.tscn -- --shaft=2 --reach-boss
 
 # Regenerate the placeholder art
 Godot --headless --path . --script res://tools/gen_placeholder_art.gd

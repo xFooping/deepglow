@@ -6,11 +6,12 @@ const DATA_DIR := "res://data/"
 const EFFECT_OPS: Array[String] = ["add", "mult", "set"]
 const SPECIAL_EFFECT_TYPES: Array[String] = ["unlock_elevator_stop"]
 const ORE_FIELDS: Array[String] = ["id", "display_name", "hp", "color", "icon_path", "block_texture_path", "pickup_texture_path", "sort_order"]
-const SHAFT_FIELDS: Array[String] = ["id", "display_name", "boss_depth_m", "boss_hp", "ore_bands", "fill_density", "peg_density", "special_density", "palette", "twist_id"]
+const SHAFT_FIELDS: Array[String] = ["id", "display_name", "boss_depth_m", "boss_hp", "boss_chamber_rows", "boss_size_cells", "boss_texture_path", "ore_bands", "fill_density", "peg_density", "special_density", "palette", "twist_id"]
+const TWIST_IDS: Array[String] = ["none", "mushroom_pegs"]
 const BAND_FIELDS: Array[String] = ["ore_id", "from_m", "to_m", "weight"]
 const UPGRADE_FIELDS: Array[String] = ["id", "name", "description", "icon", "position", "prereqs", "max_level", "cost", "effects"]
 const ARTIFACT_FIELDS: Array[String] = ["id", "name", "description", "flavor", "icon", "effects"]
-const BALANCE_SECTIONS: Array[String] = ["grid", "physics", "aim", "combat", "blocks", "camera", "pickups", "fx", "ui", "save", "audio", "stats", "stat_limits", "debug"]
+const BALANCE_SECTIONS: Array[String] = ["grid", "physics", "aim", "combat", "boss", "twists", "blocks", "camera", "pickups", "fx", "ui", "save", "audio", "stats", "stat_limits", "debug"]
 
 var balance: Dictionary = {}
 var ores: Array[Dictionary] = []      ## Sorted by sort_order. An ore's position here is its "ore index".
@@ -191,6 +192,8 @@ func _validate() -> void:
 		var shaft: Dictionary = shafts[sid]
 		var ctx := "shafts.json %d" % sid
 		_require(shaft, SHAFT_FIELDS, ctx)
+		if not TWIST_IDS.has(str(shaft.get("twist_id", ""))):
+			errors.append("%s: unknown twist_id '%s'" % [ctx, shaft.get("twist_id", "")])
 		for band: Variant in shaft.get("ore_bands", []):
 			if not band is Dictionary:
 				errors.append("%s: ore band must be an object" % ctx)

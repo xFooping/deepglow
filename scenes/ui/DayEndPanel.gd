@@ -2,7 +2,6 @@ class_name DayEndPanel
 extends CanvasLayer
 ## Slides into the middle of the frozen gameplay view with the day's summary.
 
-const GAMEPLAY_SCENE := "res://scenes/gameplay/Gameplay.tscn"
 const SKILL_TREE_SCENE := "res://scenes/skilltree/SkillTree.tscn"
 
 var _dim: ColorRect
@@ -57,6 +56,12 @@ func show_summary(summary: Dictionary) -> void:
 			row.add_child(_text("%s  %s" % [DataDB.ore_name(id), Fmt.num(float(ore[id]))]))
 			box.add_child(row)
 	box.add_child(_text("Deepest: %d m" % int(summary.get("max_depth_m", 0))))
+	if bool(summary.get("boss_defeated", false)):
+		var won := _text("Crystal shattered! A deeper shaft is open.")
+		won.add_theme_color_override("font_color", Color(1.0, 0.85, 0.45))
+		box.add_child(won)
+	elif bool(summary.get("reached_chamber", false)):
+		box.add_child(_text("Damage to the crystal: %s" % Fmt.num(float(summary.get("boss_damage", 0)))))
 
 	var buttons := HBoxContainer.new()
 	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -87,7 +92,7 @@ func _text(t: String) -> Label:
 
 func _on_mine_again() -> void:
 	AudioManager.play("ui_click")
-	get_tree().change_scene_to_file(GAMEPLAY_SCENE)
+	PreDayPicker.begin_next_day(self)
 
 
 func _on_skill_tree() -> void:

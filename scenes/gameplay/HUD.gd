@@ -15,11 +15,17 @@ var _ore_list: VBoxContainer
 var _ore_labels: Dictionary = {}  ## ore id -> Label
 var _shown_supply: int = -1
 var _shown_depth: int = -1
+var _camera: CameraRig
+var _boss_box: VBoxContainer
+var _boss_bar: ProgressBar
+var _boss_label: Label
+var _shown_boss_hp: int = -1
 
 
-func setup(shaft: Shaft, embers: EmberManager) -> void:
+func setup(shaft: Shaft, embers: EmberManager, camera: CameraRig) -> void:
 	_shaft = shaft
 	_embers = embers
+	_camera = camera
 	_build()
 	Events.ore_collected.connect(_on_ore_collected)
 
@@ -47,9 +53,24 @@ func _build() -> void:
 	_depth_bar.fill_mode = ProgressBar.FILL_TOP_TO_BOTTOM
 	_depth_bar.show_percentage = false
 	_depth_bar.custom_minimum_size = Vector2(8, 200)
-	_depth_bar.max_value = _shaft.floor_row
+	_depth_bar.max_value = _shaft.boss_row
 	bar_row.add_child(_depth_bar)
-	bar_row.add_child(_label("%d m" % _shaft.floor_row, Color(0.7, 0.65, 0.8)))
+	bar_row.add_child(_label("%d m" % _shaft.boss_row, Color(0.7, 0.65, 0.8)))
+
+	_boss_box = VBoxContainer.new()
+	_boss_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_boss_box.visible = false
+	left.add_child(_boss_box)
+	_boss_box.add_child(_label("CRYSTAL", Color(0.85, 0.8, 0.95)))
+	_boss_bar = ProgressBar.new()
+	_boss_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_boss_bar.show_percentage = false
+	_boss_bar.custom_minimum_size = Vector2(margin - 24, 8)
+	_boss_bar.add_theme_stylebox_override("fill", _flat(Color(1.0, 0.7, 0.35)))
+	_boss_bar.add_theme_stylebox_override("background", _flat(Color(0.15, 0.1, 0.15)))
+	_boss_box.add_child(_boss_bar)
+	_boss_label = _label("", Color(1.0, 0.9, 0.7))
+	_boss_box.add_child(_boss_label)
 
 	var right := _column(Vector2(view.x - margin + 8, 8), Vector2(margin - 16, view.y - 16))
 	right.add_child(_label("EMBERS", Color(0.85, 0.8, 0.95)))
@@ -91,6 +112,25 @@ func _process(_delta: float) -> void:
 		_shown_depth = GameState.day_max_depth_m
 		_depth_label.text = "%d m" % _shown_depth
 		_depth_bar.value = _shown_depth
+	_update_boss()
+
+
+## The boss bar only shows while the chamber is on screen.
+func _update_boss() -> void:
+	var boss := _shaft.boss
+	_boss_box.visible = boss != null and _camera.bottom() > _shaft.boss_y()
+	if boss == null or boss.hp == _shown_boss_hp:
+		return
+	_shown_boss_hp = boss.hp
+	_boss_bar.max_value = boss.max_hp
+	_boss_bar.value = boss.hp
+	_boss_label.text = "%s / %s" % [Fmt.num(boss.hp), Fmt.num(boss.max_hp)]
+
+
+func _flat(color: Color) -> StyleBoxFlat:
+	var s := StyleBoxFlat.new()
+	s.bg_color = color
+	return s
 
 
 func _refresh_embers() -> void:

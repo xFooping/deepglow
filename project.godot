@@ -23,6 +23,7 @@ GameState="*res://autoload/GameState.gd"
 Stats="*res://autoload/Stats.gd"
 SaveManager="*res://autoload/SaveManager.gd"
 AudioManager="*res://autoload/AudioManager.gd"
+Toasts="*res://scenes/ui/Toast.tscn"
 DebugOverlay="*res://debug/DebugOverlay.tscn"
 
 [display]
@@ -36,10 +37,10 @@ window/stretch/scale_mode="integer"
 
 [gui]
 
-theme/custom="res://art/ui/theme.tres"
 theme/default_font_antialiasing=0
 theme/default_font_hinting=0
 theme/default_font_subpixel_positioning=0
+theme/custom="res://art/ui/theme.tres"
 
 [physics]
 
@@ -48,7 +49,7 @@ common/physics_interpolation=true
 
 [rendering]
 
+textures/canvas_textures/default_texture_filter=0
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
-textures/canvas_textures/default_texture_filter=0
 environment/defaults/default_clear_color=Color(0.07, 0.05, 0.06, 1)

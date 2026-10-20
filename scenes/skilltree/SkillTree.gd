@@ -1,8 +1,6 @@
 extends Control
 ## Full-screen skill tree: currency bar along the top, Upgrades / Artifacts tabs, Next Day button.
 
-const GAMEPLAY_SCENE := "res://scenes/gameplay/Gameplay.tscn"
-
 var _canvas: TreeCanvas
 var _tooltip: Tooltip
 var _currency_row: HBoxContainer
@@ -128,4 +126,4 @@ func _on_tab_changed(tab: int) -> void:
 
 func _on_next_day() -> void:
 	AudioManager.play("ui_click")
-	get_tree().change_scene_to_file(GAMEPLAY_SCENE)
+	PreDayPicker.begin_next_day(self)

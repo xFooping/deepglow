@@ -29,5 +29,12 @@ func follow(target_y: float, delta: float) -> void:
 		position.y = top + view_size.y * 0.5
 
 
+## The one allowed camera bump (boss shatter): a quick drop and settle.
+func bump(px: float, duration: float) -> void:
+	var tw := create_tween()
+	tw.tween_property(self, "offset:y", px, duration * 0.3).set_trans(Tween.TRANS_SINE)
+	tw.tween_property(self, "offset:y", 0.0, duration * 0.7).set_trans(Tween.TRANS_SINE)
+
+
 func bottom() -> float:
 	return top + view_size.y
