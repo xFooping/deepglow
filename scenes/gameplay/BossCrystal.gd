@@ -88,6 +88,7 @@ func _shatter() -> void:
 	defeated.emit()
 	Events.boss_shattered.emit(center(), _color)
 	AudioManager.play("boss_shatter")
+	AudioManager.play("boss_fanfare")
 	GameState.defeat_boss(shaft_id)
 	queue_free()
 

@@ -219,7 +219,7 @@ func _draw() -> void:
 		var max_level := int(up.get("max_level", 1))
 		if max_level > 1 and font:
 			var label := "%d/%d" % [level, max_level]
-			draw_string(font, Vector2(rect.position.x, rect.end.y + 9), label, HORIZONTAL_ALIGNMENT_CENTER, rect.size.x, 8, Color(0.85, 0.8, 0.9))
+			draw_string(font, Vector2(rect.position.x, rect.end.y + 11), label, HORIZONTAL_ALIGNMENT_CENTER, rect.size.x, 16, Color(0.85, 0.8, 0.9))
 
 	for f in _flows:
 		var t := float(f["t"])

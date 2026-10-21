@@ -116,7 +116,7 @@
 		"tree_pop_s": 0.3,
 		"tree_flow_s": 0.5,
 		"toast_s": 2.5,
-		"popup_font_size": 8,
+		"popup_font_size": 16,
 		"auto_continue_s": 4
 	},
 	"save": {
@@ -217,7 +217,7 @@
 		"shelf_every_rows": 4,
 		"shelf_peg_chance": 0.5,
 		"timber_kindling_share": 0.6,
-		"vein_mass_fill": 0.8,
+		"vein_mass_fill": 0.65,
 		"cavern_peg_chance": 0.35,
 		"antechamber_rows": 10
 	},
@@ -243,5 +243,17 @@
 		"multishot_spread_deg": 9,
 		"echo_durability_frac": 0.5,
 		"nova_scale": 2.0
+	},
+	"visuals": {
+		"back_parallax": 0.5,
+		"side_parallax": 0.85,
+		"side_decor_chance": 0.12,
+		"ember_lights": 24,
+		"ember_light_scale": 1.2,
+		"ember_light_energy": 0.7,
+		"keeper_light_scale": 4.5,
+		"keeper_light_energy": 1.0,
+		"trail_length": 5,
+		"ambient_darken": 0.35
 	}
 }

@@ -61,7 +61,7 @@ func _init() -> void:
 	for entry: Variant in ores:
 		var ore: Dictionary = entry
 		var c := Color.html(str(ore["color"]))
-		_save(_block(c, hash(str(ore["id"]))), str(ore["block_texture_path"]))
+		_save(_block_strip(c, hash(str(ore["id"])), str(ore.get("sound_family", "stone"))), str(ore["block_texture_path"]))
 		_save(_pickup(c), str(ore["pickup_texture_path"]))
 	_save(_peg(), "res://art/blocks/peg.png")
 	_save(_mushroom(), "res://art/blocks/mushroom.png")
@@ -82,6 +82,10 @@ func _init() -> void:
 	_save(_keeper(), "res://art/keeper/keeper.png")
 	_save(_lantern(), "res://art/keeper/lantern.png")
 	_save(_rock(Color(0.75, 0.75, 0.75), 7, false), "res://art/backgrounds/rock.png")
+	_save(_cave_back(), "res://art/backgrounds/cave_back.png")
+	_save(_wall_strip(), "res://art/backgrounds/wall.png")
+	_save(_decor_strip(), "res://art/backgrounds/decor.png")
+	_save(_light(), "res://art/fx/light.png")
 	_save(_rock(Color(0.28, 0.22, 0.3), 11, true), "res://art/backgrounds/floor.png")
 	for icon_name: String in ICONS:
 		_save(_ascii(ICONS[icon_name], 2), "res://art/icons/upgrades/%s.png" % icon_name)
@@ -103,6 +107,131 @@ func _save(img: Image, path: String) -> void:
 
 func _new(w: int, h: int) -> Image:
 	return Image.create_empty(w, h, false, Image.FORMAT_RGBA8)
+
+
+## Three 16x16 variants side by side: a chunky rounded rock whose body leans toward the ore's
+## color, with crystals or flecks of the ore embedded in it. Corners are cut so blocks read as
+## separate stones rather than a flat grid.
+func _block_strip(c: Color, s: int, family: String) -> Image:
+	var img := _new(48, 16)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = s
+	var stone := Color(0.42, 0.38, 0.44).lerp(c, 0.45)
+	if family == "earth":
+		stone = c
+	for v in 3:
+		var ox := v * 16
+		for y in 16:
+			for x in 16:
+				if _corner_cut(x, y):
+					continue
+				var n := rng.randf_range(-0.06, 0.06)
+				var col := stone.lightened(n) if n > 0.0 else stone.darkened(-n)
+				if x == 0 or y == 0 or _corner_cut(x - 1, y) or _corner_cut(x, y - 1):
+					col = stone.lightened(0.18)
+				if x == 15 or y == 15 or _corner_cut(x + 1, y) or _corner_cut(x, y + 1):
+					col = stone.darkened(0.45)
+				img.set_pixel(ox + x, y, col)
+		# Ore: crystal clusters for metals and gems, pebbles for earth, dark seams for stone.
+		var clusters := rng.randi_range(2, 4)
+		for _k in clusters:
+			var cx := rng.randi_range(3, 12)
+			var cy := rng.randi_range(3, 12)
+			if family == "earth":
+				img.set_pixel(ox + cx, cy, c.darkened(0.35))
+				img.set_pixel(ox + cx + 1, cy, c.darkened(0.25))
+				continue
+			var shape: Array[Vector2i] = [Vector2i(0, 0), Vector2i(1, 0), Vector2i(0, 1), Vector2i(1, 1), Vector2i(-1, 1), Vector2i(1, -1)]
+			for i in rng.randi_range(3, shape.size()):
+				var q := Vector2i(cx, cy) + shape[i]
+				img.set_pixel(ox + q.x, q.y, c.lightened(0.1) if family != "stone" else c.darkened(0.2))
+			img.set_pixel(ox + cx, cy, c.lightened(0.55))
+	return img
+
+
+func _corner_cut(x: int, y: int) -> bool:
+	var dx := mini(x, 15 - x)
+	var dy := mini(y, 15 - y)
+	return dx + dy < 2
+
+
+## Dark cave rock for the open air behind the board (tinted per shaft, drawn with parallax).
+func _cave_back() -> Image:
+	var img := _new(32, 32)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 21
+	for y in 32:
+		for x in 32:
+			var v := 0.85 + rng.randf_range(-0.07, 0.07) + 0.06 * sin(x * 0.4 + y * 0.25)
+			img.set_pixel(x, y, Color(v, v, v))
+	for _k in 6:
+		var p := Vector2(rng.randi_range(0, 31), rng.randi_range(0, 31))
+		var d := Vector2.from_angle(rng.randf() * TAU)
+		for _s in 6:
+			var ip := Vector2i(p.round())
+			img.set_pixel(posmod(ip.x, 32), posmod(ip.y, 32), Color(0.62, 0.62, 0.62))
+			p += d
+			d = d.rotated(rng.randf_range(-0.5, 0.5))
+	return img
+
+
+## Four 16x16 cave-wall tiles for the side margins (tinted per shaft).
+func _wall_strip() -> Image:
+	var img := _new(64, 16)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 33
+	for v in 4:
+		for y in 16:
+			for x in 16:
+				var b := 0.75 + rng.randf_range(-0.08, 0.08)
+				if (y + v * 5) % 9 == 0 or (x + v * 3) % 11 == 0:
+					b -= 0.18
+				img.set_pixel(v * 16 + x, y, Color(b, b, b))
+	return img
+
+
+## Side-wall decorations, 16x32 each: hanging root, hanging lantern, crystal cluster, mushroom.
+func _decor_strip() -> Image:
+	var img := _new(64, 32)
+	var root := Color(0.45, 0.32, 0.22)
+	var x := 7
+	for y in 26:
+		img.set_pixel(x, y, root)
+		if y % 5 == 4:
+			x += 1 if y % 10 == 4 else -1
+			img.set_pixel(x, y, root)
+	for y in 14:
+		img.set_pixel(16 + 7, y, Color(0.3, 0.25, 0.22))
+	for y in range(14, 22):
+		for xx in range(16 + 4, 16 + 11):
+			var edge := y == 14 or y == 21 or xx == 16 + 4 or xx == 16 + 10
+			img.set_pixel(xx, y, Color(0.2, 0.15, 0.13) if edge else Color(1.0, 0.82, 0.42))
+	var gem := Color(0.75, 0.6, 0.95)
+	for k in 3:
+		var bx := 32 + 4 + k * 3
+		var top := 18 + absi(k - 1) * 4
+		for y in range(top, 31):
+			img.set_pixel(bx, y, gem.lightened(0.3) if k == 1 else gem)
+			img.set_pixel(bx + 1, y, gem.darkened(0.25))
+	for y in range(20, 31):
+		for xx in range(48 + 3, 48 + 13):
+			var d := Vector2((xx - 55.5) / 5.0, (y - 25.0) / 3.0).length()
+			if y <= 25 and d <= 1.0:
+				img.set_pixel(xx, y, Color(0.4, 0.85, 0.75))
+			elif y > 25 and absf(xx - 55.5) <= 1.0:
+				img.set_pixel(xx, y, Color(0.85, 0.8, 0.7))
+	return img
+
+
+## Soft round light for PointLight2D.
+func _light() -> Image:
+	var img := _new(64, 64)
+	for y in 64:
+		for x in 64:
+			var d := Vector2(x, y).distance_to(Vector2(31.5, 31.5)) / 32.0
+			var a := clampf(1.0 - d, 0.0, 1.0)
+			img.set_pixel(x, y, Color(1, 1, 1, a * a))
+	return img
 
 
 func _block(c: Color, s: int) -> Image:

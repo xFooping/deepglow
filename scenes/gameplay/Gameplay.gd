@@ -18,6 +18,7 @@ var _celebrating: bool = false
 @onready var fx: FxManager = $FxManager
 @onready var embers: EmberManager = $EmberManager
 @onready var keeper: LanternKeeper = $LanternKeeper
+@onready var lights: Lights = $Lights
 @onready var popups: Popups = $Popups
 @onready var cursor_view: CursorView = $CursorView
 @onready var player_input: PlayerInput = $PlayerInput
@@ -44,7 +45,9 @@ func _ready() -> void:
 	keeper.setup(shaft, camera_rig, embers, player_input)
 	cursor_view.setup(player_input)
 	popups.setup(player_input)
-	ambient.color = Color.html(str(shaft.data["palette"].get("ambient", "#ffffff")))
+	lights.setup(embers, keeper)
+	# A dim cave: lights (keeper lantern, embers) bring the warmth back.
+	ambient.color = Color.html(str(shaft.data["palette"].get("ambient", "#ffffff"))).darkened(DataDB.num("visuals.ambient_darken"))
 	pickups.all_collected.connect(_on_pickups_banked)
 	Events.boss_defeated.connect(_on_boss_defeated)
 	Events.boss_shattered.connect(_on_boss_shattered)

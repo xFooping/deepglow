@@ -86,11 +86,20 @@ func _build() -> void:
 
 
 func _column(pos: Vector2, size_v: Vector2) -> VBoxContainer:
+	var panel := PanelContainer.new()
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.position = pos
+	panel.custom_minimum_size = Vector2(size_v.x, 0)
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.08, 0.06, 0.1, 0.72)
+	style.border_color = Color(0.78, 0.56, 0.34, 0.6)
+	style.set_border_width_all(1)
+	style.set_content_margin_all(5)
+	panel.add_theme_stylebox_override("panel", style)
+	add_child(panel)
 	var box := VBoxContainer.new()
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	box.position = pos
-	box.size = size_v
-	add_child(box)
+	panel.add_child(box)
 	return box
 
 

@@ -15,6 +15,13 @@ func _ready() -> void:
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(bg)
+	var cave := TextureRect.new()
+	cave.texture = DataDB.texture("res://art/backgrounds/cave_back.png")
+	cave.stretch_mode = TextureRect.STRETCH_TILE
+	cave.modulate = Color(0.22, 0.18, 0.28)
+	cave.set_anchors_preset(Control.PRESET_FULL_RECT)
+	cave.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(cave)
 
 	_canvas = TreeCanvas.new()
 	_canvas.set_anchors_preset(Control.PRESET_FULL_RECT)

@@ -12,7 +12,7 @@ const TWIST_IDS: Array[String] = ["none", "mushroom_pegs", "prism_pegs", "water_
 const BAND_FIELDS: Array[String] = ["ore_id", "from_m", "to_m", "weight"]
 const UPGRADE_FIELDS: Array[String] = ["id", "name", "description", "icon", "position", "prereqs", "max_level", "cost", "effects"]
 const ARTIFACT_FIELDS: Array[String] = ["id", "name", "description", "flavor", "icon", "effects"]
-const BALANCE_SECTIONS: Array[String] = ["grid", "physics", "aim", "combat", "boss", "twists", "generation", "combo", "abilities", "settings", "blocks", "camera", "pickups", "fx", "ui", "save", "audio", "stats", "stat_limits", "debug"]
+const BALANCE_SECTIONS: Array[String] = ["grid", "physics", "aim", "combat", "boss", "twists", "generation", "combo", "abilities", "visuals", "settings", "blocks", "camera", "pickups", "fx", "ui", "save", "audio", "stats", "stat_limits", "debug"]
 
 var balance: Dictionary = {}
 var ores: Array[Dictionary] = []      ## Sorted by sort_order. An ore's position here is its "ore index".

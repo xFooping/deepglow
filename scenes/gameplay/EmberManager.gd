@@ -35,6 +35,7 @@ class Ember:
 	var has_target: bool = false
 	var seek_timer: float = 0.0
 	var is_echo: bool = false
+	var trail := PackedVector2Array()  ## recent positions, newest last, for the fading trail
 
 
 var supply: int = 0
@@ -92,6 +93,7 @@ var _echo_chance: float
 var _echo_frac: float
 var _nova_mult: float
 var _nova_scale: float
+var _trail_len: int
 
 
 func setup(shaft: Shaft, camera: CameraRig, day_seed: int) -> void:
@@ -113,6 +115,7 @@ func setup(shaft: Shaft, camera: CameraRig, day_seed: int) -> void:
 	_seek_retarget = DataDB.num("abilities.seek_retarget_s")
 	_echo_frac = DataDB.num("abilities.echo_durability_frac")
 	_nova_scale = DataDB.num("abilities.nova_scale")
+	_trail_len = DataDB.integer("visuals.trail_length")
 	_wall_restitution = DataDB.num("physics.wall_restitution")
 	_stuck_speed = DataDB.num("physics.stuck_speed_threshold")
 	_stuck_limit = DataDB.num("physics.stuck_time_to_burnout")
@@ -243,6 +246,7 @@ func _spawn(origin: Vector2, velocity: Vector2) -> Ember:
 	e.has_target = false
 	e.seek_timer = 0.0
 	e.is_echo = false
+	e.trail.clear()
 	active.append(e)
 	return e
 
@@ -254,6 +258,9 @@ func _physics_process(delta: float) -> void:
 	while i >= 0:
 		var e := active[i]
 		e.prev = e.pos
+		e.trail.append(e.pos)
+		if e.trail.size() > _trail_len:
+			e.trail.remove_at(0)
 		e.hit_cooldown -= delta
 		if _seek_strength > 0.0:
 			_seek(e, delta)
@@ -552,6 +559,10 @@ func _draw_glow() -> void:
 	var f := Engine.get_physics_interpolation_fraction()
 	var half := _glow_tex.get_size() * 0.5
 	for e in active:
+		# Soft fading trail behind each ember.
+		for k in e.trail.size():
+			var ta := float(k + 1) / (e.trail.size() + 1) * 0.5
+			_glow.draw_circle(e.trail[k], 1.0 + ta * 2.0, Color(1.0, 0.6, 0.25, ta))
 		var p := e.prev.lerp(e.pos, f)
 		var a := lerpf(_min_alpha, 1.0, float(e.durability) / e.max_durability)
 		if e.kind == EmberKind.NOVA:

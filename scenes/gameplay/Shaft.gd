@@ -33,6 +33,7 @@ var ore_colors := PackedColorArray()
 
 var _ore_max_hp := PackedInt32Array()
 var _block_sources := PackedInt32Array()  ## ore index -> TileSet source id
+var _block_variants := PackedInt32Array() ## ore index -> number of 16 px variants in its texture strip
 var _peg_source: int = -1
 var _mushroom_source: int = -1
 var _prism_source: int = -1
@@ -82,7 +83,9 @@ func setup(id: int, day_seed: int) -> void:
 		ore_ids.append(str(ore["id"]))
 		ore_colors.append(color)
 		_ore_max_hp.append(int(ore["hp"]))
-		_block_sources.append(_add_source(tile_set, DataDB.texture(str(ore["block_texture_path"])), color))
+		var tex := DataDB.texture(str(ore["block_texture_path"]))
+		_block_sources.append(_add_source(tile_set, tex, color))
+		_block_variants.append(maxi(1, floori(tex.get_width() / float(cell_px))) if tex else 1)
 	_peg_source = _add_source(tile_set, DataDB.texture(PEG_TEXTURE), Color(0.7, 0.95, 1.0))
 	_mushroom_source = _add_source(tile_set, DataDB.texture(MUSHROOM_TEXTURE), Color(0.4, 0.9, 0.8))
 	_prism_source = _add_source(tile_set, DataDB.texture(PRISM_TEXTURE), Color(1.0, 0.8, 0.95))
@@ -131,7 +134,9 @@ func _add_source(tile_set: TileSet, tex: Texture2D, fallback: Color) -> int:
 	var src := TileSetAtlasSource.new()
 	src.texture = tex
 	src.texture_region_size = Vector2i(cell_px, cell_px)
-	src.create_tile(Vector2i.ZERO)
+	# A texture wider than one cell is a strip of variants; each becomes a tile.
+	for v in maxi(1, floori(tex.get_width() / float(cell_px))):
+		src.create_tile(Vector2i(v, 0))
 	return tile_set.add_source(src)
 
 
@@ -224,7 +229,7 @@ func hit_block(cell: Vector2i, damage: int, crit: bool, ember_damage: int = 0, c
 		yield_mult *= _lode_mult
 	chunk.rich[i] = 0
 	Events.block_broken.emit(cell, ore_ids[ore_i], center, yield_mult)
-	AudioManager.play("block_break")
+	AudioManager.play("block_break_" + str(DataDB.ores[ore_i].get("sound_family", "stone")))
 	return true
 
 
@@ -389,7 +394,8 @@ func _paint_chunk(chunk: ShaftChunk) -> void:
 		var c := Vector2i(i % columns, chunk.first_row + i / columns)
 		match chunk.kinds[i]:
 			Kind.BLOCK:
-				_blocks.set_cell(c, _block_sources[chunk.ore[i]], Vector2i.ZERO)
+				var o := chunk.ore[i]
+				_blocks.set_cell(c, _block_sources[o], Vector2i(absi(hash(c)) % _block_variants[o], 0))
 			Kind.PEG:
 				_blocks.set_cell(c, _peg_source, Vector2i.ZERO)
 			Kind.MUSHROOM:

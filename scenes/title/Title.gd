@@ -8,8 +8,7 @@ var _confirm: ConfirmationDialog
 
 
 func _ready() -> void:
-	var bg := ColorRect.new()
-	bg.color = Color(0.09, 0.07, 0.12)
+	var bg := TitleBackdrop.new()
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
 
@@ -23,9 +22,14 @@ func _ready() -> void:
 	var title := Label.new()
 	title.text = "DEEPGLOW"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.add_theme_font_size_override("font_size", 32)
+	title.add_theme_font_size_override("font_size", 64)
 	title.add_theme_color_override("font_color", Color(1.0, 0.75, 0.4))
 	box.add_child(title)
+	var tagline := Label.new()
+	tagline.text = "a cozy descent"
+	tagline.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	tagline.add_theme_color_override("font_color", Color(0.85, 0.78, 0.95))
+	box.add_child(tagline)
 
 	var has_save := SaveManager.has_save()
 	var cont := _button("Continue", _on_continue)

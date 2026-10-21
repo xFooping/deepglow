@@ -51,11 +51,11 @@
 		},
 		"twist_id": "none",
 		"patterns": {
-			"peg_field": 3,
+			"peg_field": 4,
 			"shelves": 3,
-			"funnel": 1,
-			"vein_mass": 2,
-			"cavern": 1
+			"funnel": 2,
+			"vein_mass": 1,
+			"cavern": 2
 		}
 	},
 	{
@@ -110,10 +110,11 @@
 		},
 		"twist_id": "mushroom_pegs",
 		"patterns": {
-			"peg_field": 4,
+			"peg_field": 5,
 			"shelves": 2,
-			"vein_mass": 3,
-			"cavern": 1
+			"vein_mass": 1,
+			"cavern": 2,
+			"funnel": 1
 		}
 	},
 	{
