@@ -197,44 +197,44 @@
 			{
 				"ore_id": "copper",
 				"from_m": 0,
-				"to_m": 100,
-				"weight": 2
+				"to_m": 60,
+				"weight": 1
 			},
 			{
 				"ore_id": "iron",
 				"from_m": 0,
-				"to_m": 150,
-				"weight": 3
+				"to_m": 100,
+				"weight": 2
 			},
 			{
 				"ore_id": "silver",
+				"from_m": 0,
+				"to_m": 140,
+				"weight": 2
+			},
+			{
+				"ore_id": "gold",
 				"from_m": 0,
 				"to_m": 200,
 				"weight": 3
 			},
 			{
-				"ore_id": "gold",
-				"from_m": 0,
-				"to_m": 250,
-				"weight": 4
-			},
-			{
 				"ore_id": "quartz",
-				"from_m": 50,
-				"to_m": 300,
+				"from_m": 30,
+				"to_m": 260,
 				"weight": 3
 			},
 			{
 				"ore_id": "sapphire",
-				"from_m": 40,
+				"from_m": 20,
 				"to_m": 450,
-				"weight": 6
+				"weight": 8
 			},
 			{
 				"ore_id": "moonstone",
-				"from_m": 200,
+				"from_m": 180,
 				"to_m": 450,
-				"weight": 3
+				"weight": 4
 			}
 		],
 		"special_density": 0.0,
