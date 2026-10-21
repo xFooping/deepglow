@@ -35,6 +35,8 @@ class Ember:
 	var has_target: bool = false
 	var seek_timer: float = 0.0
 	var is_echo: bool = false
+	var age: float = 0.0          ## seconds alive; embers fade out at physics.max_ember_life_s
+	var is_split: bool = false    ## prism children don't split again (keeps swarms bounded)
 	var trail := PackedVector2Array()  ## recent positions, newest last, for the fading trail
 
 
@@ -94,6 +96,7 @@ var _echo_frac: float
 var _nova_mult: float
 var _nova_scale: float
 var _trail_len: int
+var _max_life: float
 var _squash_max: float
 var _squash_limit: int
 
@@ -118,6 +121,7 @@ func setup(shaft: Shaft, camera: CameraRig, day_seed: int) -> void:
 	_echo_frac = DataDB.num("abilities.echo_durability_frac")
 	_nova_scale = DataDB.num("abilities.nova_scale")
 	_trail_len = DataDB.integer("visuals.trail_length")
+	_max_life = DataDB.num("physics.max_ember_life_s")
 	_squash_max = DataDB.num("visuals.squash_max")
 	_squash_limit = DataDB.integer("visuals.squash_max_embers")
 	_wall_restitution = DataDB.num("physics.wall_restitution")
@@ -250,6 +254,8 @@ func _spawn(origin: Vector2, velocity: Vector2) -> Ember:
 	e.has_target = false
 	e.seek_timer = 0.0
 	e.is_echo = false
+	e.is_split = false
+	e.age = 0.0
 	e.trail.clear()
 	active.append(e)
 	return e
@@ -262,6 +268,7 @@ func _physics_process(delta: float) -> void:
 	while i >= 0:
 		var e := active[i]
 		e.prev = e.pos
+		e.age += delta
 		e.trail.append(e.pos)
 		if e.trail.size() > _trail_len:
 			e.trail.remove_at(0)
@@ -275,7 +282,7 @@ func _physics_process(delta: float) -> void:
 			e.stuck_time = 0.0
 		if e.pos.y < leash_y:
 			_burn_out(i, false)
-		elif e.durability <= 0 or e.stuck_time >= _stuck_limit:
+		elif e.durability <= 0 or e.stuck_time >= _stuck_limit or e.age >= _max_life:
 			_burn_out(i, true)
 		elif e.pos.y > deepest:
 			deepest = e.pos.y
@@ -430,7 +437,7 @@ func _hit_block(e: Ember, cell: Vector2i) -> void:
 ## Glimmer Grotto: a prism may split the ember. The child copies its damage, takes half of its
 ## remaining durability (rounded up), flies on the mirrored path, and costs no supply.
 func _try_split(e: Ember, cell: Vector2i) -> void:
-	if e.split_cells.has(cell) or active.size() >= _cap or _rng.randf() >= _prism_chance:
+	if e.is_split or e.split_cells.has(cell) or active.size() >= _cap or _rng.randf() >= _prism_chance:
 		return
 	e.split_cells.append(cell)
 	var child: Ember = _pool.pop_back() if not _pool.is_empty() else Ember.new()
@@ -447,6 +454,14 @@ func _try_split(e: Ember, cell: Vector2i) -> void:
 	child.water_drain = 0.0
 	child.steam_timer = 0.0
 	child.combo = e.combo
+	child.is_split = true
+	child.age = e.age
+	child.kind = EmberKind.NORMAL
+	child.pierce_left = 0
+	child.is_echo = false
+	child.has_target = false
+	child.seek_timer = 0.0
+	child.trail.clear()
 	active.append(child)
 	Events.prism_split.emit(e.pos)
 	AudioManager.play("prism_split")

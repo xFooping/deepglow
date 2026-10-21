@@ -21,7 +21,8 @@
 		"bounce_jitter_deg": 3,
 		"min_hit_speed": 40,
 		"hit_cooldown_s": 0.05,
-		"substep_fraction_of_radius": 0.9
+		"substep_fraction_of_radius": 0.9,
+		"max_ember_life_s": 20
 	},
 	"aim": {
 		"min_angle_deg": 10,

@@ -62,7 +62,7 @@
 		"id": 2,
 		"display_name": "Iron Veins",
 		"boss_depth_m": 250,
-		"boss_hp": 300000,
+		"boss_hp": 450000,
 		"boss_chamber_rows": 12,
 		"boss_size_cells": [
 			7,
@@ -185,7 +185,7 @@
 		"id": 4,
 		"display_name": "Drip Caverns",
 		"boss_depth_m": 450,
-		"boss_hp": 11000000,
+		"boss_hp": 7000000,
 		"boss_chamber_rows": 12,
 		"boss_size_cells": [
 			8,
