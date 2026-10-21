@@ -18,6 +18,7 @@ var _celebrating: bool = false
 @onready var fx: FxManager = $FxManager
 @onready var embers: EmberManager = $EmberManager
 @onready var keeper: LanternKeeper = $LanternKeeper
+@onready var popups: Popups = $Popups
 @onready var cursor_view: CursorView = $CursorView
 @onready var player_input: PlayerInput = $PlayerInput
 @onready var camera_rig: CameraRig = $CameraRig
@@ -42,6 +43,7 @@ func _ready() -> void:
 	pickups.setup(shaft, camera_rig, player_input, hud)
 	keeper.setup(shaft, camera_rig, embers, player_input)
 	cursor_view.setup(player_input)
+	popups.setup(player_input)
 	ambient.color = Color.html(str(shaft.data["palette"].get("ambient", "#ffffff")))
 	pickups.all_collected.connect(_on_pickups_banked)
 	Events.boss_defeated.connect(_on_boss_defeated)
@@ -79,7 +81,8 @@ func _on_chamber_reached() -> void:
 
 
 func _on_boss_shattered(_world_pos: Vector2, _color: Color) -> void:
-	camera_rig.bump(DataDB.num("boss.camera_bump_px"), DataDB.num("boss.camera_bump_s"))
+	if Settings.shake_enabled():
+		camera_rig.bump(DataDB.num("boss.camera_bump_px"), DataDB.num("boss.camera_bump_s"))
 
 
 ## After a short celebration the day ends normally; embers still in play burn out.

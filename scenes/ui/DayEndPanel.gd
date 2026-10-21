@@ -7,6 +7,9 @@ const CREDITS_SCENE := "res://scenes/credits/Credits.tscn"
 
 var _dim: ColorRect
 var _slider: Control
+var _panel: PanelContainer
+var _again: Button
+var _countdown: float = 0.0
 
 
 func show_summary(summary: Dictionary) -> void:
@@ -25,6 +28,7 @@ func show_summary(summary: Dictionary) -> void:
 	_slider.add_child(center)
 
 	var panel := PanelContainer.new()
+	_panel = panel
 	center.add_child(panel)
 	var margin := MarginContainer.new()
 	for side in ["left", "right", "top", "bottom"]:
@@ -85,15 +89,46 @@ func show_summary(summary: Dictionary) -> void:
 	AudioManager.play("panel_slide")
 
 
+## If nothing in the tree is affordable there's nothing to decide, so the next day starts on its
+## own after a short countdown (cancelled by hovering the panel). If something is affordable,
+## the Skill Tree button is highlighted instead.
 func _add_day_buttons(buttons: HBoxContainer) -> void:
-	var again := Button.new()
-	again.text = "Mine Again"
-	again.pressed.connect(_on_mine_again)
-	buttons.add_child(again)
+	_again = Button.new()
+	_again.text = "Mine Again"
+	_again.pressed.connect(_on_mine_again)
+	buttons.add_child(_again)
 	var tree_button := Button.new()
 	tree_button.text = "Skill Tree"
 	tree_button.pressed.connect(_on_skill_tree)
 	buttons.add_child(tree_button)
+	var affordable := _affordable_count()
+	if affordable > 0:
+		tree_button.text = "Skill Tree (%d ready)" % affordable
+		tree_button.add_theme_color_override("font_color", Color(1.0, 0.85, 0.45))
+		tree_button.grab_focus.call_deferred()
+	elif not GameState.needs_day_picker():
+		_countdown = DataDB.num("ui.auto_continue_s")
+
+
+func _affordable_count() -> int:
+	var n := 0
+	for id: String in DataDB.upgrades:
+		if GameState.purchase_status(id) == GameState.PurchaseStatus.OK:
+			n += 1
+	return n
+
+
+func _process(delta: float) -> void:
+	if _countdown <= 0.0 or _again == null:
+		return
+	if _panel and _panel.get_global_rect().has_point(_panel.get_global_mouse_position()):
+		_countdown = 0.0
+		_again.text = "Mine Again"
+		return
+	_countdown -= delta
+	_again.text = "Mine Again (%d)" % ceili(_countdown)
+	if _countdown <= 0.0:
+		_on_mine_again()
 
 
 func _on_credits() -> void:

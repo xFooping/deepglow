@@ -25,10 +25,13 @@ func register(event: String, stream: AudioStream, bus: String = "SFX") -> void:
 	_buses[event] = bus
 
 
-func play(event: String) -> void:
+## pitch_step raises the pitch a semitone-ish per step (peg combos climb the scale).
+func play(event: String, pitch_step: int = 0) -> void:
 	var pitch := 1.0
 	if event == "ore_pickup":
 		pitch = _pickup_pitch()
+	elif pitch_step > 0:
+		pitch = minf(1.0 + DataDB.num("audio.pickup_pitch_step") * pitch_step, DataDB.num("audio.pickup_pitch_max"))
 	var stream: AudioStream = _streams.get(event)
 	if stream == null:
 		return

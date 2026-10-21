@@ -27,7 +27,8 @@ func _draw() -> void:
 	if _input == null:
 		return
 	var p := _input.cursor_world().round()
-	draw_arc(p, Stats.get_f("magnet_radius"), 0.0, TAU, 40, Color(1.0, 0.9, 0.7, 0.25), 1.0)
+	if Settings.magnet_ring_enabled():
+		draw_arc(p, Stats.get_f("magnet_radius"), 0.0, TAU, 40, Color(1.0, 0.9, 0.7, 0.25), 1.0)
 	if _tex:
 		draw_texture(_tex, p)
 	else:

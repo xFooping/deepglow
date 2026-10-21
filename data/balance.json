@@ -11,16 +11,16 @@
 	"physics": {
 		"gravity": 600,
 		"max_speed": 520,
-		"block_restitution": 0.55,
-		"peg_restitution": 0.75,
+		"block_restitution": 0.8,
+		"peg_restitution": 0.85,
 		"wall_restitution": 0.7,
 		"stuck_speed_threshold": 8,
-		"stuck_time_to_burnout": 1.5,
+		"stuck_time_to_burnout": 0.75,
 		"ember_radius": 3,
 		"peg_radius": 5,
 		"bounce_jitter_deg": 3,
-		"min_hit_speed": 0,
-		"hit_cooldown_s": 0.08,
+		"min_hit_speed": 40,
+		"hit_cooldown_s": 0.05,
 		"substep_fraction_of_radius": 0.9
 	},
 	"aim": {
@@ -45,7 +45,9 @@
 		"shatter_life_s": 1.2,
 		"hit_flash_s": 0.05,
 		"shimmer_speed": 1.6,
-		"shimmer_amount": 0.12
+		"shimmer_amount": 0.12,
+		"regen_per_day": 0.15,
+		"funnel_gap_cells": 0
 	},
 	"twists": {
 		"mushroom_nudge_speed": 45,
@@ -65,7 +67,11 @@
 		"leash_px": 200,
 		"follow_screen_fraction": 0.55,
 		"follow_speed": 3.0,
-		"keeper_offset_px": 22
+		"keeper_offset_px": 22,
+		"keeper_carve_cells": [
+			3,
+			2
+		]
 	},
 	"pickups": {
 		"spawn_speed_min": 30,
@@ -109,7 +115,9 @@
 		"tree_bounds_margin_px": 120,
 		"tree_pop_s": 0.3,
 		"tree_flow_s": 0.5,
-		"toast_s": 2.5
+		"toast_s": 2.5,
+		"popup_font_size": 8,
+		"auto_continue_s": 4
 	},
 	"save": {
 		"purchase_debounce_s": 1.0
@@ -122,10 +130,10 @@
 		"max_voices_per_sound": 4
 	},
 	"stats": {
-		"ember_count": 3,
+		"ember_count": 6,
 		"ember_damage": 1,
-		"ember_durability": 20,
-		"fire_cooldown": 1.0,
+		"ember_durability": 30,
+		"fire_cooldown": 0.8,
 		"launch_speed": 260,
 		"crit_chance": 0,
 		"magnet_radius": 20,
@@ -136,16 +144,56 @@
 		"prism_split_chance": 0.25,
 		"water_drain_mult": 1.0,
 		"kindling_burst_mult": 3.0,
-		"mushroom_restitution": 1.15
+		"mushroom_restitution": 1.15,
+		"bomb_every": 0,
+		"bomb_radius": 1,
+		"bomb_damage_mult": 3.0,
+		"pierce": 0,
+		"multishot": 0,
+		"seek_strength": 0,
+		"peg_spark_mult": 0,
+		"combo_step": 0.25,
+		"combo_max": 4.0,
+		"flare_cooldown": 0,
+		"flare_damage_mult": 5.0,
+		"flare_length": 8,
+		"pulse_cooldown": 0,
+		"echo_chance": 0,
+		"nova_mult": 1.0,
+		"lode_chance": 0.015
 	},
 	"ore_yield_base": 1,
 	"stat_limits": {
-		"fire_cooldown": { "min": 0.05 },
-		"offscreen_bank_rate": { "max": 1.0 },
-		"crit_chance": { "max": 1.0 },
-		"chain_spark_chance": { "max": 1.0 },
-		"ember_count": { "min": 1 },
-		"ember_durability": { "min": 1 }
+		"fire_cooldown": {
+			"min": 0.05
+		},
+		"offscreen_bank_rate": {
+			"max": 1.0
+		},
+		"crit_chance": {
+			"max": 1.0
+		},
+		"chain_spark_chance": {
+			"max": 1.0
+		},
+		"ember_count": {
+			"min": 1
+		},
+		"ember_durability": {
+			"min": 1
+		},
+		"bomb_every": {
+			"min": 0
+		},
+		"echo_chance": {
+			"max": 0.9
+		},
+		"flare_cooldown": {
+			"min": 0
+		},
+		"pulse_cooldown": {
+			"min": 0
+		}
 	},
 	"debug": {
 		"bench_embers": 300,
@@ -156,6 +204,44 @@
 		"autoplay_aim_radius_px": 60,
 		"autoplay_max_days": 1000,
 		"autoplay_goal_boss_shaft": 5,
-		"autoplay_boss_attempt_ratio": 2.2
+		"autoplay_boss_attempt_ratio": 0.5
+	},
+	"generation": {
+		"segment_min_rows": 6,
+		"segment_max_rows": 11,
+		"vein_seeds_per_chunk": 10,
+		"lode_hp_mult": 2.0,
+		"lode_yield_mult": 8,
+		"peg_field_spacing": 4,
+		"peg_field_block_chance": 0.12,
+		"shelf_every_rows": 4,
+		"shelf_peg_chance": 0.5,
+		"timber_kindling_share": 0.6,
+		"vein_mass_fill": 0.8,
+		"cavern_peg_chance": 0.35,
+		"antechamber_rows": 10
+	},
+	"settings": {
+		"damage_numbers": true,
+		"screen_shake": true,
+		"magnet_ring": true,
+		"master_volume": 0.8,
+		"music_volume": 0.6,
+		"sfx_volume": 0.8,
+		"ui_volume": 0.7
+	},
+	"combo": {
+		"popup_every": 4
+	},
+	"abilities": {
+		"flare_min_cooldown_s": 2.0,
+		"pulse_min_cooldown_s": 2.0,
+		"flare_beam_s": 0.3,
+		"pulse_ring_s": 0.5,
+		"seek_radius_cells": 4,
+		"seek_retarget_s": 0.2,
+		"multishot_spread_deg": 9,
+		"echo_durability_frac": 0.5,
+		"nova_scale": 2.0
 	}
 }

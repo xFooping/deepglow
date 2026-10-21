@@ -23,6 +23,7 @@ GameState="*res://autoload/GameState.gd"
 Stats="*res://autoload/Stats.gd"
 SaveManager="*res://autoload/SaveManager.gd"
 AudioManager="*res://autoload/AudioManager.gd"
+Settings="*res://autoload/Settings.gd"
 Toasts="*res://scenes/ui/Toast.tscn"
 DebugOverlay="*res://debug/DebugOverlay.tscn"
 

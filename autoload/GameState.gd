@@ -9,7 +9,8 @@ var owned_artifacts: Array = []
 var unlocked_shafts: Array = []
 var defeated_bosses: Array = []
 var max_depth_by_shaft: Dictionary = {}   ## "shaft id" -> deepest meter reached
-var boss_reach_by_shaft: Dictionary = {}  ## "shaft id" -> times the boss chamber was reached
+var boss_reach_by_shaft: Dictionary = {}
+var boss_hp_by_shaft: Dictionary = {}     ## "shaft id" -> crystal HP left at the end of the last visit  ## "shaft id" -> times the boss chamber was reached
 var elevator_stops: Dictionary = {}       ## "shaft id" -> Array of unlocked start depths (m)
 var last_pick: Dictionary = {}            ## {"shaft": int, "depth_m": int}
 var day_count: int = 0
@@ -52,6 +53,7 @@ func reset_to_new_game() -> void:
 	defeated_bosses = []
 	max_depth_by_shaft = {}
 	boss_reach_by_shaft = {}
+	boss_hp_by_shaft = {}
 	elevator_stops = {}
 	last_pick = {"shaft": unlocked_shafts[0] if not unlocked_shafts.is_empty() else 1, "depth_m": 0}
 	day_count = 0
@@ -106,6 +108,17 @@ func needs_day_picker() -> bool:
 		if available_start_depths(int(sid)).size() > 1:
 			return true
 	return false
+
+
+## Crystal damage carries over between days, but the crystal regrows a share of its HP each
+## new day (boss.regen_per_day), so a long gap still costs something.
+func boss_hp_today(shaft_id: int) -> int:
+	var max_hp := int(DataDB.shafts[shaft_id]["boss_hp"])
+	var key := str(shaft_id)
+	if not boss_hp_by_shaft.has(key):
+		return max_hp
+	var regen := roundi(max_hp * DataDB.num("boss.regen_per_day"))
+	return mini(max_hp, int(boss_hp_by_shaft[key]) + regen)
 
 
 func is_boss_defeated(shaft_id: int) -> bool:
@@ -268,6 +281,7 @@ func to_dict() -> Dictionary:
 		"defeated_bosses": defeated_bosses,
 		"max_depth_by_shaft": max_depth_by_shaft,
 		"boss_reach_by_shaft": boss_reach_by_shaft,
+		"boss_hp_by_shaft": boss_hp_by_shaft,
 		"elevator_stops": elevator_stops,
 		"last_pick": last_pick,
 		"day_count": day_count,
@@ -293,6 +307,7 @@ func from_dict(d: Dictionary) -> void:
 	defeated_bosses = _ints(d.get("defeated_bosses", []))
 	max_depth_by_shaft = d.get("max_depth_by_shaft", {})
 	boss_reach_by_shaft = d.get("boss_reach_by_shaft", {})
+	boss_hp_by_shaft = d.get("boss_hp_by_shaft", {})
 	elevator_stops = d.get("elevator_stops", {})
 	last_pick = d.get("last_pick", last_pick)
 	day_count = int(d.get("day_count", 0))

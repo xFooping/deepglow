@@ -1,6 +1,7 @@
 class_name FxManager
 extends Node2D
-## Tiny pooled particle system for block chips, crit sparks and burnout puffs.
+## Tiny pooled particle system for block chips, crit sparks and burnout puffs, plus short-lived
+## beams (sparking pegs, flares) and rings (bombs, lantern pulse).
 
 
 class Particle:
@@ -23,6 +24,8 @@ var _spark_count: int
 var _crit_count: int
 var _spark_speed: float
 var _spark_life: float
+var _lines: Array[Dictionary] = []  ## {a, b, life, max, color, width}
+var _rings: Array[Dictionary] = []  ## {pos, radius, life, max, color}
 
 
 func _ready() -> void:
@@ -43,6 +46,10 @@ func _ready() -> void:
 	Events.kindling_popped.connect(_on_kindling_popped)
 	Events.prism_split.connect(_on_prism_split)
 	Events.ember_steamed.connect(_on_ember_steamed)
+	Events.bomb_exploded.connect(_on_bomb_exploded)
+	Events.peg_sparked.connect(_on_peg_sparked)
+	Events.flare_fired.connect(_on_flare_fired)
+	Events.pulse_fired.connect(_on_pulse_fired)
 
 
 func burst(at: Vector2, color: Color, count: int, speed: float, life: float) -> void:
@@ -93,7 +100,37 @@ func _on_boss_shattered(world_pos: Vector2, color: Color) -> void:
 	burst(world_pos, Color(1.0, 0.85, 0.5), floori(count * 0.5), DataDB.num("boss.shatter_speed") * 0.6, DataDB.num("boss.shatter_life_s"))
 
 
+func line(a: Vector2, b: Vector2, color: Color, width: float, life: float) -> void:
+	_lines.append({"a": a, "b": b, "life": life, "max": life, "color": color, "width": width})
+
+
+func ring(at: Vector2, radius: float, color: Color, life: float) -> void:
+	_rings.append({"pos": at, "radius": radius, "life": life, "max": life, "color": color})
+
+
+func _on_bomb_exploded(world_pos: Vector2, radius: int) -> void:
+	burst(world_pos, Color(1.0, 0.55, 0.25), _chip_count * 3, _chip_speed * 1.5, _chip_life * 1.4)
+	ring(world_pos, (radius + 0.5) * 16.0, Color(1.0, 0.7, 0.35), 0.3)
+
+
+func _on_peg_sparked(from_pos: Vector2, to_pos: Vector2) -> void:
+	line(from_pos, to_pos, Color(0.7, 0.95, 1.0), 1.0, 0.15)
+
+
+func _on_flare_fired(from_pos: Vector2, to_pos: Vector2) -> void:
+	line(from_pos, to_pos, Color(1.0, 0.85, 0.5), 3.0, DataDB.num("abilities.flare_beam_s"))
+
+
+func _on_pulse_fired(world_pos: Vector2) -> void:
+	ring(world_pos, 120.0, Color(1.0, 0.9, 0.6), DataDB.num("abilities.pulse_ring_s"))
+
+
 func _process(delta: float) -> void:
+	for list: Array[Dictionary] in [_lines, _rings]:
+		for k in range(list.size() - 1, -1, -1):
+			list[k]["life"] = float(list[k]["life"]) - delta
+			if float(list[k]["life"]) <= 0.0:
+				list.remove_at(k)
 	var i := _active.size() - 1
 	while i >= 0:
 		var p := _active[i]
@@ -114,3 +151,12 @@ func _draw() -> void:
 		var c := p.color
 		c.a = p.life / p.max_life
 		draw_rect(Rect2(p.pos.round(), Vector2.ONE), c)
+	for l in _lines:
+		var lc: Color = l["color"]
+		lc.a = float(l["life"]) / float(l["max"])
+		draw_line(l["a"], l["b"], lc, float(l["width"]))
+	for r in _rings:
+		var t := 1.0 - float(r["life"]) / float(r["max"])
+		var rc: Color = r["color"]
+		rc.a = 1.0 - t
+		draw_arc(r["pos"], float(r["radius"]) * (0.3 + 0.7 * t), 0.0, TAU, 32, rc, 1.0)

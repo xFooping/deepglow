@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3]
+[gd_scene load_steps=13 format=3]
 
 [ext_resource type="Script" path="res://scenes/gameplay/Gameplay.gd" id="1"]
 [ext_resource type="Script" path="res://scenes/gameplay/ShaftBackdrop.gd" id="2"]
@@ -11,6 +11,7 @@
 [ext_resource type="Script" path="res://scenes/gameplay/PlayerInput.gd" id="9"]
 [ext_resource type="Script" path="res://scenes/gameplay/CameraRig.gd" id="10"]
 [ext_resource type="PackedScene" path="res://scenes/gameplay/HUD.tscn" id="11"]
+[ext_resource type="Script" path="res://scenes/gameplay/Popups.gd" id="12"]
 
 [node name="Gameplay" type="Node2D"]
 script = ExtResource("1")
@@ -33,6 +34,9 @@ script = ExtResource("5")
 script = ExtResource("6")
 
 [node name="LanternKeeper" parent="." instance=ExtResource("7")]
+
+[node name="Popups" type="Node2D" parent="."]
+script = ExtResource("12")
 
 [node name="CursorView" type="Node2D" parent="."]
 script = ExtResource("8")

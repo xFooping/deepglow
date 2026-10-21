@@ -13,6 +13,7 @@ const PRISM_TEXTURE := "res://art/blocks/prism.png"
 const WATER_TEXTURE := "res://art/blocks/water.png"
 const KINDLING_TEXTURE := "res://art/blocks/kindling.png"
 const RICH_TEXTURE := "res://art/blocks/rich_vein.png"
+const LODE_TEXTURE := "res://art/blocks/lode.png"
 const CRACK_TEXTURES: Array[String] = ["res://art/blocks/crack_1.png", "res://art/blocks/crack_2.png"]
 
 var shaft_id: int = 1
@@ -24,6 +25,7 @@ var floor_row: int = 0
 var boss_row: int = 0             ## First row of the boss chamber (= boss depth in meters).
 var boss: BossCrystal              ## Null once defeated, or on a day it isn't spawned.
 var boss_cells := Rect2i()
+var _chamber_wall := PackedInt32Array()  ## per chamber row: wall width in cells on each side
 var width_px: float = 0.0
 var floor_y: float = 0.0
 var ore_ids: Array[String] = []
@@ -38,6 +40,9 @@ var _water_source: int = -1
 var _kindling_source: int = -1
 var _rich_source: int = -1
 var _rich_mult: float = 2.0
+var _lode_source: int = -1
+var _lode_mult: float = 8.0
+var _peg_glow: PegGlow
 var _kindling_delay: float
 var _kindling_radius: int
 var _bursts: Array[Dictionary] = []  ## pending kindling bursts: {cell, damage, chain, t}
@@ -64,6 +69,7 @@ func setup(id: int, day_seed: int) -> void:
 	chunk_rows = DataDB.integer("grid.chunk_rows")
 	boss_row = int(data["boss_depth_m"])
 	floor_row = boss_row + int(data["boss_chamber_rows"])
+	_build_chamber_walls()
 	width_px = columns * cell_px
 	floor_y = floor_row * cell_px
 	_crack_stage_1 = DataDB.num("blocks.crack_stage_1")
@@ -84,6 +90,8 @@ func setup(id: int, day_seed: int) -> void:
 	_kindling_source = _add_source(tile_set, DataDB.texture(KINDLING_TEXTURE), Color(0.6, 0.4, 0.2))
 	_rich_source = _add_source(tile_set, DataDB.texture(RICH_TEXTURE), Color(1, 1, 1, 0.3))
 	_rich_mult = DataDB.num("twists.rich_vein_yield_mult")
+	_lode_source = _add_source(tile_set, DataDB.texture(LODE_TEXTURE), Color(1, 1, 0.8, 0.5))
+	_lode_mult = DataDB.num("generation.lode_yield_mult")
 	_kindling_delay = DataDB.num("twists.kindling_chain_delay_s")
 	_kindling_radius = DataDB.integer("twists.kindling_radius_cells")
 	for path in CRACK_TEXTURES:
@@ -104,6 +112,9 @@ func setup(id: int, day_seed: int) -> void:
 	_flash = ShaftFlash.new()
 	_flash.cell_px = cell_px
 	add_child(_flash)
+	_peg_glow = PegGlow.new()
+	_peg_glow.cell_px = cell_px
+	add_child(_peg_glow)
 	_squash = MushroomSquash.new()
 	_squash.setup(self, DataDB.texture(MUSHROOM_TEXTURE))
 	add_child(_squash)
@@ -161,6 +172,10 @@ func kind_at(col: int, row: int) -> int:
 		return Kind.FLOOR
 	if row < 0 or col < 0 or col >= columns:
 		return Kind.EMPTY
+	if row >= boss_row:
+		var wall := _chamber_wall[row - boss_row]
+		if col < wall or col >= columns - wall:
+			return Kind.FLOOR
 	if boss and row >= boss_cells.position.y and boss_cells.has_point(Vector2i(col, row)):
 		if boss.is_solid(Vector2i(col, row) - boss_cells.position):
 			return Kind.BOSS
@@ -176,7 +191,7 @@ func kind_at(col: int, row: int) -> int:
 
 ## Damages a block or kindling. Returns true if it broke. ember_damage is the base (non-crit)
 ## damage of whatever hit it; a breaking kindling block bursts for a multiple of it.
-func hit_block(cell: Vector2i, damage: int, crit: bool, ember_damage: int = 0, chain: int = 0) -> bool:
+func hit_block(cell: Vector2i, damage: int, crit: bool, ember_damage: int = 0, chain: int = 0, combo_mult: float = 1.0) -> bool:
 	var kind := kind_at(cell.x, cell.y)
 	if kind != Kind.BLOCK and kind != Kind.KINDLING:
 		return false
@@ -202,7 +217,11 @@ func hit_block(cell: Vector2i, damage: int, crit: bool, ember_damage: int = 0, c
 	if kind == Kind.KINDLING:
 		_queue_burst(cell, maxi(ember_damage, 1), chain)
 		return true
-	var yield_mult := _rich_mult if chunk.rich[i] == 1 else 1.0
+	var yield_mult := combo_mult
+	if chunk.rich[i] == ShaftGenerator.RICH_VEIN:
+		yield_mult *= _rich_mult
+	elif chunk.rich[i] == ShaftGenerator.LODE:
+		yield_mult *= _lode_mult
 	chunk.rich[i] = 0
 	Events.block_broken.emit(cell, ore_ids[ore_i], center, yield_mult)
 	AudioManager.play("block_break")
@@ -246,6 +265,25 @@ func water_at(p: Vector2) -> bool:
 	return kind_at(floori(p.x / cell_px), floori(p.y / cell_px)) == Kind.WATER
 
 
+## The chamber narrows like a funnel: wall width grows from 0 at the top to the gap beside the
+## crystal at the bottom, so embers that fall in are steered onto it.
+func _build_chamber_walls() -> void:
+	var rows := floor_row - boss_row
+	var size_cells: Array = data["boss_size_cells"]
+	@warning_ignore("integer_division")
+	var bottom_wall := (columns - int(size_cells[0])) / 2 - int(DataDB.num("boss.funnel_gap_cells"))
+	_chamber_wall.resize(rows)
+	for k in rows:
+		_chamber_wall[k] = maxi(0, floori(bottom_wall * float(k + 1) / rows))
+
+
+func is_chamber_wall(col: int, row: int) -> bool:
+	if row < boss_row or row >= floor_row:
+		return false
+	var wall := _chamber_wall[row - boss_row]
+	return col < wall or col >= columns - wall
+
+
 ## Places today's boss crystal on the chamber floor, centered. Skipped once that boss is beaten.
 func spawn_boss(crystal: BossCrystal) -> void:
 	var size_cells: Array = data["boss_size_cells"]
@@ -270,6 +308,57 @@ func boss_y() -> float:
 
 func _on_boss_defeated() -> void:
 	boss = null
+
+
+## Bomb ember blast: damages every block and kindling within radius cells (round).
+func explode(cell: Vector2i, radius: int, damage: int, ember_damage: int, combo_mult: float) -> void:
+	for dy in range(-radius, radius + 1):
+		for dx in range(-radius, radius + 1):
+			if dx * dx + dy * dy <= radius * radius + radius:
+				hit_block(cell + Vector2i(dx, dy), damage, false, ember_damage, 0, combo_mult)
+	Events.bomb_exploded.emit(cell_center(cell), radius)
+	AudioManager.play("bomb_blast")
+
+
+## HP left in a block or kindling cell, or -1 if it isn't one.
+func block_hp(cell: Vector2i) -> int:
+	var k := kind_at(cell.x, cell.y)
+	if k != Kind.BLOCK and k != Kind.KINDLING:
+		return -1
+	@warning_ignore("integer_division")
+	var chunk: ShaftChunk = _chunks[cell.y / chunk_rows]
+	return chunk.hp[(cell.y - chunk.first_row) * columns + cell.x]
+
+
+func is_lode(cell: Vector2i) -> bool:
+	if kind_at(cell.x, cell.y) != Kind.BLOCK:
+		return false
+	@warning_ignore("integer_division")
+	var chunk: ShaftChunk = _chunks[cell.y / chunk_rows]
+	return chunk.rich[(cell.y - chunk.first_row) * columns + cell.x] == ShaftGenerator.LODE
+
+
+## Lights up a peg that was just hit (the plinko "ping").
+func light_peg(cell: Vector2i, combo: int) -> void:
+	_peg_glow.light(cell, combo)
+
+
+## Clears blocks around the lantern keeper so it never hangs inside solid rock. No ore drops.
+func carve(center: Vector2, half_cells: Vector2i) -> void:
+	var cc := Vector2i(floori(center.x / cell_px), floori(center.y / cell_px))
+	for dy in range(-half_cells.y, half_cells.y + 1):
+		for dx in range(-half_cells.x, half_cells.x + 1):
+			var cell := cc + Vector2i(dx, dy)
+			var k := kind_at(cell.x, cell.y)
+			if k == Kind.BLOCK or k == Kind.KINDLING:
+				@warning_ignore("integer_division")
+				var chunk: ShaftChunk = _chunks[cell.y / chunk_rows]
+				var i := (cell.y - chunk.first_row) * columns + cell.x
+				chunk.apply_damage(i, chunk.hp[i])
+				chunk.rich[i] = 0
+				_blocks.erase_cell(cell)
+				_cracks.erase_cell(cell)
+				_overlay.erase_cell(cell)
 
 
 ## Plays the squash on a mushroom peg that was just bounced off.
@@ -311,8 +400,10 @@ func _paint_chunk(chunk: ShaftChunk) -> void:
 				_water.set_cell(c, _water_source, Vector2i.ZERO)
 			Kind.KINDLING:
 				_blocks.set_cell(c, _kindling_source, Vector2i.ZERO)
-		if chunk.rich[i] == 1:
+		if chunk.rich[i] == ShaftGenerator.RICH_VEIN:
 			_overlay.set_cell(c, _rich_source, Vector2i.ZERO)
+		elif chunk.rich[i] == ShaftGenerator.LODE:
+			_overlay.set_cell(c, _lode_source, Vector2i.ZERO)
 
 
 ## Hides a mushroom's tile while MushroomSquash draws it squashed, then restores it.

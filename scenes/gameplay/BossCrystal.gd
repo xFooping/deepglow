@@ -27,7 +27,7 @@ func setup(id: int, rect: Rect2, cell_px: int) -> void:
 	area = rect
 	var data: Dictionary = DataDB.shafts[id]
 	max_hp = int(data["boss_hp"])
-	hp = max_hp
+	hp = GameState.boss_hp_today(id)
 	_tex = DataDB.texture(str(data["boss_texture_path"]))
 	_color = Color.html(str(data.get("boss_color", "#ffffff")))
 	_flash_s = DataDB.num("boss.hit_flash_s")
@@ -71,6 +71,7 @@ func hit(damage: int, crit: bool) -> void:
 		return
 	var dealt := mini(damage, hp)
 	hp -= dealt
+	GameState.boss_hp_by_shaft[str(shaft_id)] = hp
 	GameState.day_boss_damage += dealt
 	_flash_left = _flash_s
 	Events.boss_hit.emit(shaft_id, dealt, hp, max_hp, crit)

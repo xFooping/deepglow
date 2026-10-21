@@ -76,6 +76,7 @@ func setup(shaft: Shaft, camera: CameraRig, input: PlayerInput, hud: HUD) -> voi
 	_fly_s = DataDB.num("pickups.day_end_fly_s")
 	_stagger_s = DataDB.num("pickups.day_end_stagger_s")
 	Events.block_broken.connect(_on_block_broken)
+	Events.pulse_fired.connect(_on_pulse_fired)
 
 
 func spawn(ore_index: int, at: Vector2, amount: int) -> void:
@@ -113,6 +114,13 @@ func _finish_collect_all() -> void:
 	if _collecting_all:
 		_collecting_all = false
 		all_collected.emit()
+
+
+## Lantern Pulse: every drifting pickup on screen flies to the cursor.
+func _on_pulse_fired(_at: Vector2) -> void:
+	for p in active:
+		if p.state == State.DRIFT:
+			p.state = State.MAGNET
 
 
 func _on_block_broken(_cell: Vector2i, ore_id: String, world_pos: Vector2, yield_mult: float) -> void:

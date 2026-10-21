@@ -47,8 +47,8 @@ func _draw() -> void:
 			_tile(_rock, Vector2(x, y), _rock_tint)
 		for x in range(int(_shaft.width_px), int(_shaft.width_px) + _margin + cell, cell):
 			_tile(_rock, Vector2(x, y), _rock_tint)
-		if row >= _shaft.floor_row:
-			for col in _shaft.columns:
+		for col in _shaft.columns:
+			if row >= _shaft.floor_row or _shaft.is_chamber_wall(col, row):
 				_tile(_floor, Vector2(col * cell, y), Color.WHITE)
 
 

@@ -18,6 +18,7 @@ var _cursor_speed: float
 var _aim_radius: float
 var _goal_shaft: int
 var _gate_reported: bool = false
+var _boss_frac: float = 0.3  ## running estimate of how much of a day's potential lands on the crystal
 
 
 func _ready() -> void:
@@ -52,7 +53,7 @@ func _pick_day() -> void:
 	for d in depths:
 		if d != boss_depth:
 			depth = maxi(depth, d)
-	if depths.has(boss_depth) and potential >= DataDB.num("debug.autoplay_boss_attempt_ratio") * float(DataDB.shafts[shaft_id]["boss_hp"]):
+	if depths.has(boss_depth) and potential * _boss_frac >= DataDB.num("debug.autoplay_boss_attempt_ratio") * float(GameState.boss_hp_today(shaft_id)):
 		depth = boss_depth
 	GameState.last_pick = {"shaft": shaft_id, "depth_m": depth}
 
@@ -108,6 +109,10 @@ func _on_day_ended(summary: Dictionary) -> void:
 		int(summary.get("day", 0)), sim_time / 60.0, int(summary.get("shaft", 0)), GameState.start_depth_m,
 		int(summary.get("max_depth_m", 0)), int(summary.get("boss_damage", 0)),
 		Stats.get_i("ember_damage"), Stats.get_i("ember_durability"), Stats.get_i("ember_count"), " ".join(parts)])
+	if GameState.start_depth_m > 0 and bool(summary.get("reached_chamber", false)) and GameState.start_depth_m == int(DataDB.shafts[int(summary.get("shaft", 1))]["boss_depth_m"]):
+		var potential := Stats.get_f("ember_count") * Stats.get_f("ember_durability") * Stats.get_f("ember_damage")
+		if potential > 0.0:
+			_boss_frac = lerpf(_boss_frac, float(summary.get("boss_damage", 0)) / potential, 0.5)
 	_day_end_wait = 0.5
 
 

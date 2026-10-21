@@ -36,6 +36,17 @@ const ICONS := {
 	"artifact": ["...c....", "..cwc...", ".cwcwc..", "cwcwcwc.", ".cwcwc..", "..cwc...", "...c....", "........"],
 	"auto_collect": ["k.rr.rr.", ".krr.rrk", ".rr..rr.", ".rr..rr.", ".rr..rr.", ".rrrrrr.", "k.rrrr.k", "........"],
 	"mastery": ["k..o...k", "...oo...", "..oyo.o.", ".ooyyoo.", ".oyywyo.", "oyywwyyo", "oyywwyyo", "k.oyyo.k"],
+	"bomb": ["......o.", ".....o..", "..ddd...", ".ddddd..", "ddrdddd.", "ddddddd.", ".ddddd..", "..ddd..."],
+	"nova": ["k..k..k.", ".k.k.k..", "..yyy...", "kkywykkk", "..yyy...", ".k.k.k..", "k..k..k.", "........"],
+	"pierce": ["......w.", ".....ww.", "....ww..", "dddww...", "..ww.ddd", ".ww.....", "ww......", "w......."],
+	"echo": ["..oo....", ".oyyo...", ".oyyo.c.", "..oo..c.", ".....ccc", "....cwc.", ".....c..", "........"],
+	"multishot": ["o.....o.", ".o...o..", "..o.o...", "...o....", "...y....", "..yyy...", "..yyy...", "........"],
+	"flare": ["...k....", "...y....", "...y....", "...y....", "...y....", "..yyy...", ".dyyyd..", "..ddd..."],
+	"pulse": ["..kkkk..", ".k....k.", "k..yy..k", "k.y..y.k", "k.y..y.k", "k..yy..k", ".k....k.", "..kkkk.."],
+	"lode": ["kkkkkkkk", "k......k", "k..ww..k", "k.wkkw.k", "k.wkkw.k", "k..ww..k", "k......k", "kkkkkkkk"],
+	"seek": ["........", "..c.....", ".c.c....", "c...c...", ".c.c....", "..c..k..", "......kk", "......kk"],
+	"combo": ["c.....c.", ".......w", "..c.....", ".....c..", "...k....", ".kkk....", "..kkk...", "...k...."],
+	"spark": ["...c....", "..cc....", ".ccw....", "cccwcc..", "...wcc..", "...cc...", "...c....", "........"],
 	"gate": ["...w....", "...w....", "...w....", ".wwwww..", "..www...", "...w....", "gggggggg", "gdgdgdgd"],
 }
 
@@ -58,6 +69,7 @@ func _init() -> void:
 	_save(_water(), "res://art/blocks/water.png")
 	_save(_kindling(), "res://art/blocks/kindling.png")
 	_save(_rich(), "res://art/blocks/rich_vein.png")
+	_save(_lode(), "res://art/blocks/lode.png")
 	var shafts: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/shafts.json"))
 	for entry: Variant in shafts:
 		var shaft: Dictionary = entry
@@ -211,6 +223,20 @@ func _kindling() -> Image:
 			img.set_pixel(x, y, col)
 	for _k in 3:
 		img.set_pixel(rng.randi_range(3, 12), rng.randi_range(3, 12), wood.darkened(0.5))
+	return img
+
+
+## Lode overlay: a bright gold frame and a central gem, so a lode reads from a distance.
+func _lode() -> Image:
+	var img := _new(16, 16)
+	var gold := Color(1.0, 0.85, 0.35, 0.95)
+	for i in 16:
+		for p: Vector2i in [Vector2i(i, 0), Vector2i(i, 15), Vector2i(0, i), Vector2i(15, i)]:
+			img.set_pixelv(p, gold)
+	for y in 16:
+		for x in 16:
+			if absf(x - 7.5) + absf(y - 7.5) <= 3.0:
+				img.set_pixel(x, y, Color(1.0, 0.95, 0.7, 0.95))
 	return img
 
 
