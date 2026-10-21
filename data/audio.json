@@ -210,6 +210,48 @@
 			"res://audio/sfx/elevator_unlock_0.ogg"
 		]
 	},
+	"lode_break": {
+		"bus": "SFX",
+		"volume_db": -6,
+		"files": [
+			"res://audio/sfx/lode_break_0.ogg"
+		]
+	},
+	"jar_break": {
+		"bus": "SFX",
+		"volume_db": -6,
+		"files": [
+			"res://audio/sfx/jar_break_0.ogg"
+		]
+	},
+	"moth_catch": {
+		"bus": "SFX",
+		"volume_db": -6,
+		"files": [
+			"res://audio/sfx/moth_catch_0.ogg"
+		]
+	},
+	"depth_bonus": {
+		"bus": "SFX",
+		"volume_db": -8,
+		"files": [
+			"res://audio/sfx/depth_bonus_0.ogg"
+		]
+	},
+	"day_start": {
+		"bus": "UI",
+		"volume_db": -10,
+		"files": [
+			"res://audio/sfx/day_start_0.ogg"
+		]
+	},
+	"tally_tick": {
+		"bus": "UI",
+		"volume_db": -18,
+		"files": [
+			"res://audio/sfx/tally_tick_0.ogg"
+		]
+	},
 	"water_hiss": {
 		"bus": "SFX",
 		"volume_db": -16,

@@ -5,7 +5,7 @@ extends Node2D
 ## that are updated cell by cell when something breaks.
 ## 1 row = 1 meter. Below boss depth is an open chamber holding the boss crystal, then an indestructible floor.
 
-enum Kind { EMPTY, BLOCK, PEG, SPECIAL, FLOOR, MUSHROOM, BOSS, PRISM, WATER, KINDLING }
+enum Kind { EMPTY, BLOCK, PEG, SPECIAL, FLOOR, MUSHROOM, BOSS, PRISM, WATER, KINDLING, JAR }
 
 const PEG_TEXTURE := "res://art/blocks/peg.png"
 const MUSHROOM_TEXTURE := "res://art/blocks/mushroom.png"
@@ -14,6 +14,7 @@ const WATER_TEXTURE := "res://art/blocks/water.png"
 const KINDLING_TEXTURE := "res://art/blocks/kindling.png"
 const RICH_TEXTURE := "res://art/blocks/rich_vein.png"
 const LODE_TEXTURE := "res://art/blocks/lode.png"
+const JAR_TEXTURE := "res://art/blocks/ember_jar.png"
 const CRACK_TEXTURES: Array[String] = ["res://art/blocks/crack_1.png", "res://art/blocks/crack_2.png"]
 
 var shaft_id: int = 1
@@ -42,6 +43,7 @@ var _kindling_source: int = -1
 var _rich_source: int = -1
 var _rich_mult: float = 2.0
 var _lode_source: int = -1
+var _jar_source: int = -1
 var _lode_mult: float = 8.0
 var _peg_glow: PegGlow
 var _kindling_delay: float
@@ -94,6 +96,7 @@ func setup(id: int, day_seed: int) -> void:
 	_rich_source = _add_source(tile_set, DataDB.texture(RICH_TEXTURE), Color(1, 1, 1, 0.3))
 	_rich_mult = DataDB.num("twists.rich_vein_yield_mult")
 	_lode_source = _add_source(tile_set, DataDB.texture(LODE_TEXTURE), Color(1, 1, 0.8, 0.5))
+	_jar_source = _add_source(tile_set, DataDB.texture(JAR_TEXTURE), Color(1.0, 0.6, 0.3))
 	_lode_mult = DataDB.num("generation.lode_yield_mult")
 	_kindling_delay = DataDB.num("twists.kindling_chain_delay_s")
 	_kindling_radius = DataDB.integer("twists.kindling_radius_cells")
@@ -198,7 +201,7 @@ func kind_at(col: int, row: int) -> int:
 ## damage of whatever hit it; a breaking kindling block bursts for a multiple of it.
 func hit_block(cell: Vector2i, damage: int, crit: bool, ember_damage: int = 0, chain: int = 0, combo_mult: float = 1.0) -> bool:
 	var kind := kind_at(cell.x, cell.y)
-	if kind != Kind.BLOCK and kind != Kind.KINDLING:
+	if kind != Kind.BLOCK and kind != Kind.KINDLING and kind != Kind.JAR:
 		return false
 	@warning_ignore("integer_division")
 	var chunk: ShaftChunk = _chunks[cell.y / chunk_rows]
@@ -222,11 +225,18 @@ func hit_block(cell: Vector2i, damage: int, crit: bool, ember_damage: int = 0, c
 	if kind == Kind.KINDLING:
 		_queue_burst(cell, maxi(ember_damage, 1), chain)
 		return true
+	if kind == Kind.JAR:
+		var n := DataDB.integer("juice.jar_embers")
+		Events.jar_broken.emit(center, n)
+		AudioManager.play("jar_break")
+		return true
 	var yield_mult := combo_mult
 	if chunk.rich[i] == ShaftGenerator.RICH_VEIN:
 		yield_mult *= _rich_mult
 	elif chunk.rich[i] == ShaftGenerator.LODE:
 		yield_mult *= _lode_mult
+		Events.lode_broken.emit(center)
+		AudioManager.play("lode_break")
 	chunk.rich[i] = 0
 	Events.block_broken.emit(cell, ore_ids[ore_i], center, yield_mult)
 	AudioManager.play("block_break_" + str(DataDB.ores[ore_i].get("sound_family", "stone")))
@@ -406,6 +416,8 @@ func _paint_chunk(chunk: ShaftChunk) -> void:
 				_water.set_cell(c, _water_source, Vector2i.ZERO)
 			Kind.KINDLING:
 				_blocks.set_cell(c, _kindling_source, Vector2i.ZERO)
+			Kind.JAR:
+				_blocks.set_cell(c, _jar_source, Vector2i.ZERO)
 		if chunk.rich[i] == ShaftGenerator.RICH_VEIN:
 			_overlay.set_cell(c, _rich_source, Vector2i.ZERO)
 		elif chunk.rich[i] == ShaftGenerator.LODE:

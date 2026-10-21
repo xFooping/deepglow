@@ -94,6 +94,7 @@ var _echo_frac: float
 var _nova_mult: float
 var _nova_scale: float
 var _trail_len: int
+var _squash_max: float
 
 
 func setup(shaft: Shaft, camera: CameraRig, day_seed: int) -> void:
@@ -116,6 +117,7 @@ func setup(shaft: Shaft, camera: CameraRig, day_seed: int) -> void:
 	_echo_frac = DataDB.num("abilities.echo_durability_frac")
 	_nova_scale = DataDB.num("abilities.nova_scale")
 	_trail_len = DataDB.integer("visuals.trail_length")
+	_squash_max = DataDB.num("visuals.squash_max")
 	_wall_restitution = DataDB.num("physics.wall_restitution")
 	_stuck_speed = DataDB.num("physics.stuck_speed_threshold")
 	_stuck_limit = DataDB.num("physics.stuck_time_to_burnout")
@@ -339,7 +341,7 @@ func _collide(e: Ember) -> void:
 				var dist2 := d.length_squared()
 				if dist2 >= _radius * _radius:
 					continue
-				if kind == Shaft.Kind.BLOCK or kind == Shaft.Kind.KINDLING:
+				if kind == Shaft.Kind.BLOCK or kind == Shaft.Kind.KINDLING or kind == Shaft.Kind.JAR:
 					touching_block = true
 					if e.phasing:
 						continue
@@ -393,7 +395,7 @@ func _collide(e: Ember) -> void:
 	_bounce(e, best_normal, _block_restitution)
 	# A short per-ember hit cooldown stops a settled ember from spending its durability 60 times a
 	# second; it grinds through the block at a steady rate instead of dying stuck on top of it.
-	var hittable := best_kind == Shaft.Kind.BLOCK or best_kind == Shaft.Kind.KINDLING or best_kind == Shaft.Kind.BOSS
+	var hittable := best_kind == Shaft.Kind.BLOCK or best_kind == Shaft.Kind.KINDLING or best_kind == Shaft.Kind.JAR or best_kind == Shaft.Kind.BOSS
 	if hittable and (-vn >= _min_hit_speed or best_kind == Shaft.Kind.BOSS) and e.hit_cooldown <= 0.0:
 		e.hit_cooldown = _hit_cooldown
 		if best_kind == Shaft.Kind.BOSS:
@@ -548,7 +550,12 @@ func _draw() -> void:
 			var size_v := _core_tex.get_size() * _nova_scale
 			draw_texture_rect(_core_tex, Rect2((p - size_v * 0.5).round(), size_v), false, c)
 		elif _core_tex:
-			draw_texture(_core_tex, (p - _core_tex.get_size() * 0.5).round(), c)
+			# Squash and stretch along the direction of travel.
+			var speed := e.vel.length()
+			var stretch := 1.0 + clampf(speed / _max_speed, 0.0, 1.0) * _squash_max
+			draw_set_transform(p, e.vel.angle(), Vector2(stretch, 1.0 / stretch))
+			draw_texture(_core_tex, -_core_tex.get_size() * 0.5, c)
+			draw_set_transform(Vector2.ZERO)
 		else:
 			draw_circle(p, _radius, Color(1.0, 0.8, 0.4, c.a))
 

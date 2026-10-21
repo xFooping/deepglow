@@ -10,6 +10,9 @@ var _slider: Control
 var _panel: PanelContainer
 var _again: Button
 var _countdown: float = 0.0
+var _tallies: Array[Dictionary] = []  ## {label, prefix, target, shown}
+var _tally_t: float = 0.0
+var _tick_every: float = 0.0
 
 
 func show_summary(summary: Dictionary) -> void:
@@ -58,9 +61,22 @@ func show_summary(summary: Dictionary) -> void:
 			icon.texture = DataDB.ore_icon(id)
 			icon.stretch_mode = TextureRect.STRETCH_KEEP_CENTERED
 			row.add_child(icon)
-			row.add_child(_text("%s  %s" % [DataDB.ore_name(id), Fmt.num(float(ore[id]))]))
+			var l := _text("%s  0" % DataDB.ore_name(id))
+			row.add_child(l)
 			box.add_child(row)
+			_tallies.append({"label": l, "prefix": DataDB.ore_name(id) + "  ", "target": float(ore[id])})
 	box.add_child(_text("Deepest: %d m" % int(summary.get("max_depth_m", 0))))
+	var stats: Dictionary = summary.get("stats", {})
+	var highlights: PackedStringArray = []
+	if float(stats.get("best_combo", 1.0)) > 1.0:
+		highlights.append("Best combo x%.1f" % float(stats["best_combo"]))
+	for key: String in ["lodes", "jars", "moths"]:
+		if int(stats.get(key, 0)) > 0:
+			highlights.append("%s %d" % [{"lodes": "Lodes", "jars": "Jars", "moths": "Moths"}[key], int(stats[key])])
+	if not highlights.is_empty():
+		var hl := _text("  ".join(highlights))
+		hl.add_theme_color_override("font_color", Color(1.0, 0.85, 0.5))
+		box.add_child(hl)
 	if bool(summary.get("boss_defeated", false)):
 		var won := _text("Crystal shattered! A deeper shaft is open.")
 		won.add_theme_color_override("font_color", Color(1.0, 0.85, 0.45))
@@ -110,6 +126,23 @@ func _add_day_buttons(buttons: HBoxContainer) -> void:
 		_countdown = DataDB.num("ui.auto_continue_s")
 
 
+## Numbers count up after the panel lands, with a soft tick.
+func _run_tally(delta: float) -> void:
+	if _tallies.is_empty():
+		return
+	_tally_t += delta
+	var t := clampf((_tally_t - 0.35) / 0.8, 0.0, 1.0)
+	t = 1.0 - pow(1.0 - t, 3.0)
+	for entry in _tallies:
+		(entry["label"] as Label).text = str(entry["prefix"]) + Fmt.num(float(entry["target"]) * t)
+	_tick_every -= delta
+	if t > 0.0 and t < 1.0 and _tick_every <= 0.0:
+		_tick_every = 0.06
+		AudioManager.play("tally_tick")
+	if t >= 1.0:
+		_tallies.clear()
+
+
 func _affordable_count() -> int:
 	var n := 0
 	for id: String in DataDB.upgrades:
@@ -119,6 +152,7 @@ func _affordable_count() -> int:
 
 
 func _process(delta: float) -> void:
+	_run_tally(delta)
 	if _countdown <= 0.0 or _again == null:
 		return
 	if _panel and _panel.get_global_rect().has_point(_panel.get_global_mouse_position()):

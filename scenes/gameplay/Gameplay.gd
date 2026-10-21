@@ -10,6 +10,11 @@ var _generate_ahead: float
 var _free_behind: float
 var _reached_chamber: bool = false
 var _celebrating: bool = false
+var _next_depth_bonus: int = 0
+var _stats := {"blocks": 0, "lodes": 0, "jars": 0, "moths": 0, "best_combo": 1.0, "depth_bonuses": 0}
+var _juice := Juice.new()
+var _moth := Glowmoth.new()
+var _dust := DustMotes.new()
 
 @onready var ambient: CanvasModulate = $Ambient
 @onready var backdrop: ShaftBackdrop = $Backdrop
@@ -46,11 +51,25 @@ func _ready() -> void:
 	cursor_view.setup(player_input)
 	popups.setup(player_input)
 	lights.setup(embers, keeper)
+	add_child(_juice)
+	_juice.setup(camera_rig)
+	add_child(_moth)
+	_moth.setup(shaft, camera_rig, embers, pickups)
+	add_child(_dust)
+	move_child(_dust, backdrop.get_index() + 1)
+	_dust.setup(camera_rig, shaft)
+	var every := DataDB.integer("juice.depth_bonus_every_m")
+	_next_depth_bonus = (floori(float(GameState.start_depth_m) / every) + 1) * every
 	# A dim cave: lights (keeper lantern, embers) bring the warmth back.
 	ambient.color = Color.html(str(shaft.data["palette"].get("ambient", "#ffffff"))).darkened(DataDB.num("visuals.ambient_darken"))
 	pickups.all_collected.connect(_on_pickups_banked)
 	Events.boss_defeated.connect(_on_boss_defeated)
-	Events.boss_shattered.connect(_on_boss_shattered)
+	Events.jar_broken.connect(_on_jar_broken)
+	Events.moth_caught.connect(func(_p: Vector2) -> void: _stats["moths"] += 1)
+	Events.lode_broken.connect(func(_p: Vector2) -> void: _stats["lodes"] += 1)
+	Events.block_broken.connect(func(_c: Vector2i, _o: String, _p: Vector2, _m: float) -> void: _stats["blocks"] += 1)
+	Events.combo_reached.connect(func(_p: Vector2, m: float) -> void: _stats["best_combo"] = maxf(float(_stats["best_combo"]), m))
+	hud.show_day_banner(GameState.day_count, str(shaft.data["display_name"]), GameState.start_depth_m)
 	print("Day %d: shaft %d, seed %d" % [GameState.day_count, GameState.current_shaft, GameState.current_seed])
 
 
@@ -62,6 +81,7 @@ func _physics_process(delta: float) -> void:
 		GameState.record_depth(mini(floori(embers.deepest_y / shaft.cell_px), shaft.boss_row))
 		if not _reached_chamber and embers.deepest_y >= shaft.boss_y():
 			_on_chamber_reached()
+		_check_depth_bonus()
 	shaft.ensure_generated_to(camera_rig.bottom() + _generate_ahead)
 	shaft.free_above(camera_rig.top - _free_behind)
 	if embers.supply <= 0 and embers.active.is_empty():
@@ -74,6 +94,24 @@ func _begin_day_end() -> void:
 	pickups.collect_all_to_hud()
 
 
+## Every 25 m reached in a day gives an extra ember, so pushing deeper keeps the day going.
+func _check_depth_bonus() -> void:
+	if GameState.day_max_depth_m < _next_depth_bonus or _next_depth_bonus > shaft.boss_row:
+		return
+	var n := DataDB.integer("juice.depth_bonus_embers")
+	embers.set_supply(embers.supply + n)
+	_stats["depth_bonuses"] += 1
+	Events.depth_bonus.emit(Vector2(shaft.width_px * 0.5, _next_depth_bonus * shaft.cell_px), _next_depth_bonus, n)
+	AudioManager.play("depth_bonus")
+	_next_depth_bonus += DataDB.integer("juice.depth_bonus_every_m")
+
+
+func _on_jar_broken(_world_pos: Vector2, n: int) -> void:
+	_stats["jars"] += 1
+	if not day_over:
+		embers.set_supply(embers.supply + n)
+
+
 ## Counted once per day. The third time without a win unlocks an elevator stop at the chamber.
 func _on_chamber_reached() -> void:
 	_reached_chamber = true
@@ -81,11 +119,6 @@ func _on_chamber_reached() -> void:
 	if GameState.record_boss_reach(shaft.shaft_id):
 		AudioManager.play("elevator_unlock")
 		Events.toast_requested.emit("Elevator to the Crystal unlocked!")
-
-
-func _on_boss_shattered(_world_pos: Vector2, _color: Color) -> void:
-	if Settings.shake_enabled():
-		camera_rig.bump(DataDB.num("boss.camera_bump_px"), DataDB.num("boss.camera_bump_s"))
 
 
 ## After a short celebration the day ends normally; embers still in play burn out.
@@ -114,6 +147,7 @@ func _on_pickups_banked() -> void:
 		"reached_chamber": _reached_chamber,
 		"boss_damage": GameState.day_boss_damage,
 		"boss_defeated": GameState.day_boss_defeated,
+		"stats": _stats,
 	}
 	var panel: DayEndPanel = DAY_END_PANEL.instantiate()
 	add_child(panel)

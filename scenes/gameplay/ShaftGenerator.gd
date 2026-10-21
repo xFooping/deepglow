@@ -113,14 +113,22 @@ func fill(chunk: ShaftChunk, above: ShaftChunk) -> void:
 		else:
 			hp[i] = base_hp
 
-	# 4) Twist pegs: a share of pegs become mushrooms or prisms.
+	# 4) Ember jars: a few blocks become jars that give extra embers when broken.
+	for _j in _count_rate(float(DataDB.num("juice.jars_per_chunk")), rng):
+		for _try in 12:
+			var i := rng.randi_range(0, n - 1)
+			if kinds[i] == Shaft.Kind.BLOCK and rich[i] == 0:
+				kinds[i] = Shaft.Kind.JAR
+				break
+
+	# 5) Twist pegs: a share of pegs become mushrooms or prisms.
 	if _twist == "mushroom_pegs" or _twist == "prism_pegs":
 		var special_peg := Shaft.Kind.MUSHROOM if _twist == "mushroom_pegs" else Shaft.Kind.PRISM
 		for i in n:
 			if kinds[i] == Shaft.Kind.PEG and rng.randf() < _special:
 				kinds[i] = special_peg
 
-	# 5) Rich veins next to water (Drip Caverns).
+	# 6) Rich veins next to water (Drip Caverns).
 	for i in n:
 		if kinds[i] == Shaft.Kind.BLOCK and rich[i] == 0 and _touches(kinds, i, Shaft.Kind.WATER):
 			rich[i] = RICH_VEIN
@@ -222,7 +230,7 @@ func _funnel(kinds: PackedByteArray, above: ShaftChunk, r0: int, r1: int, rng: R
 
 
 ## A dense mass of ore cut by one or two chutes.
-func _vein_mass(kinds: PackedByteArray, above: ShaftChunk, r0: int, r1: int, rng: RandomNumberGenerator) -> void:
+func _vein_mass(kinds: PackedByteArray, _above: ShaftChunk, r0: int, r1: int, rng: RandomNumberGenerator) -> void:
 	for r in range(r0, r1):
 		for c in _columns:
 			if rng.randf() < float(_gen["vein_mass_fill"]):
@@ -268,6 +276,12 @@ func _cavern(kinds: PackedByteArray, above: ShaftChunk, r0: int, r1: int, rng: R
 
 
 # --- helpers -------------------------------------------------------------------
+
+## Integer part always, plus one more with probability equal to the fraction.
+func _count_rate(rate: float, rng: RandomNumberGenerator) -> int:
+	var whole := floori(rate)
+	return whole + (1 if rng.randf() < rate - whole else 0)
+
 
 func _is_minable_row(row: int) -> bool:
 	return row >= _top_empty and row < _minable_end

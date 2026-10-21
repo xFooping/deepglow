@@ -70,6 +70,8 @@ func _init() -> void:
 	_save(_kindling(), "res://art/blocks/kindling.png")
 	_save(_rich(), "res://art/blocks/rich_vein.png")
 	_save(_lode(), "res://art/blocks/lode.png")
+	_save(_ember_jar(), "res://art/blocks/ember_jar.png")
+	_save(_glowmoth(), "res://art/fx/glowmoth.png")
 	var shafts: Variant = JSON.parse_string(FileAccess.get_file_as_string("res://data/shafts.json"))
 	for entry: Variant in shafts:
 		var shaft: Dictionary = entry
@@ -355,6 +357,44 @@ func _kindling() -> Image:
 	return img
 
 
+## A little glass jar with an ember glowing inside and a cork on top.
+func _ember_jar() -> Image:
+	var img := _new(16, 16)
+	var glass := Color(0.75, 0.85, 0.95, 0.55)
+	var rim := Color(0.9, 0.95, 1.0, 0.9)
+	for y in range(4, 15):
+		for x in range(3, 13):
+			var edge := x == 3 or x == 12 or y == 14
+			img.set_pixel(x, y, rim if edge else glass)
+	for x in range(5, 11):
+		img.set_pixel(x, 2, Color(0.55, 0.38, 0.22))
+		img.set_pixel(x, 3, Color(0.65, 0.45, 0.26))
+	for y in range(7, 13):
+		for x in range(5, 11):
+			var d := Vector2(x, y).distance_to(Vector2(7.5, 9.5))
+			if d < 2.8:
+				img.set_pixel(x, y, Color(1.0, 0.9, 0.6) if d < 1.3 else Color(1.0, 0.55, 0.2))
+	img.set_pixel(4, 5, Color(1, 1, 1, 0.9))
+	img.set_pixel(4, 6, Color(1, 1, 1, 0.7))
+	return img
+
+
+## A soft green-white moth, wings spread (the game flaps it by squashing it horizontally).
+func _glowmoth() -> Image:
+	var img := _new(16, 12)
+	var wing := Color(0.75, 1.0, 0.85)
+	for y in 12:
+		for x in 16:
+			var left := Vector2((x - 4.0) / 4.0, (y - 5.0) / 4.5).length() <= 1.0
+			var right := Vector2((x - 11.0) / 4.0, (y - 5.0) / 4.5).length() <= 1.0
+			if left or right:
+				img.set_pixel(x, y, wing if (x + y) % 5 != 0 else Color(1, 1, 1))
+	for y in range(3, 10):
+		img.set_pixel(7, y, Color(0.35, 0.3, 0.25))
+		img.set_pixel(8, y, Color(0.35, 0.3, 0.25))
+	return img
+
+
 ## Lode overlay: a bright gold frame and a central gem, so a lode reads from a distance.
 func _lode() -> Image:
 	var img := _new(16, 16)
@@ -419,10 +459,10 @@ func _cracks(stage: int) -> Image:
 
 
 func _ember_core() -> Image:
-	var img := _new(6, 6)
-	for y in 6:
-		for x in 6:
-			var d := Vector2(x, y).distance_to(Vector2(2.5, 2.5))
+	var img := _new(8, 8)
+	for y in 8:
+		for x in 8:
+			var d := Vector2(x, y).distance_to(Vector2(3.5, 3.5)) * 0.75
 			if d <= 1.2:
 				img.set_pixel(x, y, Color(1.0, 0.97, 0.85))
 			elif d <= 2.0:
@@ -433,12 +473,12 @@ func _ember_core() -> Image:
 
 
 func _ember_glow() -> Image:
-	var img := _new(24, 24)
-	for y in 24:
-		for x in 24:
-			var d := Vector2(x, y).distance_to(Vector2(11.5, 11.5)) / 12.0
+	var img := _new(32, 32)
+	for y in 32:
+		for x in 32:
+			var d := Vector2(x, y).distance_to(Vector2(15.5, 15.5)) / 16.0
 			if d < 1.0:
-				var a := pow(1.0 - d, 2.0) * 0.55
+				var a := pow(1.0 - d, 2.0) * 0.75
 				img.set_pixel(x, y, Color(1.0, 0.55, 0.2, a))
 	return img
 

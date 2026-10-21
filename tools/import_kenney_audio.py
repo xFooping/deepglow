@@ -50,6 +50,12 @@ CHOICES = {
     "node_cant_afford": ("UI", -10, [("interface-sounds", "error_004.ogg")]),
     "panel_slide": ("UI", -12, [("interface-sounds", "open_001.ogg")]),
     "elevator_unlock": ("UI", -6, [("interface-sounds", "confirmation_003.ogg")]),
+    "lode_break": ("SFX", -6, [("music-jingles", "jingles_NES05.ogg")]),
+    "jar_break": ("SFX", -6, [("digital-audio", "powerUp4.ogg")]),
+    "moth_catch": ("SFX", -6, [("digital-audio", "powerUp7.ogg")]),
+    "depth_bonus": ("SFX", -8, [("interface-sounds", "maximize_003.ogg")]),
+    "day_start": ("UI", -10, [("interface-sounds", "open_002.ogg")]),
+    "tally_tick": ("UI", -18, [("interface-sounds", "tick_001.ogg")]),
 }
 # Made by tools/gen_audio.py (also CC0: generated for this project).
 GENERATED = {
@@ -79,6 +85,6 @@ os.makedirs(fonts, exist_ok=True)
 shutil.copyfile(find("kenney-fonts", "Kenney Pixel.ttf"), os.path.join(fonts, "kenney_pixel.ttf"))
 credits.append("| `fonts/kenney_pixel.ttf` | Kenney, *Kenney Fonts* (`Kenney Pixel.ttf`) | https://kenney.nl/assets/kenney-fonts | CC0 |")
 
-with open(os.path.join(ROOT, "audio", "credits_table.md"), "w", encoding="utf-8", newline="\n") as f:
+with open(os.path.join(ROOT, "audio", "credits_table.md"), "w", encoding="utf-8", newline="\n") as f:  # paste into CREDITS.md
     f.write("\n".join(credits) + "\n")
 print(f"{len(out)} events, {len(credits)} files")

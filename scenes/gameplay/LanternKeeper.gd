@@ -22,7 +22,11 @@ var _min_angle: float
 var _max_angle: float
 var _flare_left: float = 0.0
 var _pulse_left: float = 0.0
-var _carve := Vector2i(3, 2)  ## half-size in cells of the pocket kept open around the lantern
+var _carve := Vector2i(3, 2)
+var _time: float = 0.0
+var _hop: float = 0.0          ## seconds left in a cheer hop
+var _squash: float = 0.0       ## launch squash, decays to 0
+var _lantern_angle: float = 0.0  ## half-size in cells of the pocket kept open around the lantern
 
 @onready var _body: Sprite2D = $Body
 @onready var _lantern: Sprite2D = $Lantern
@@ -42,6 +46,10 @@ func setup(shaft: Shaft, camera: CameraRig, embers: EmberManager, input: PlayerI
 	_lantern.texture = DataDB.texture(LANTERN_TEXTURE)
 	_place()
 	reset_physics_interpolation()
+	Events.combo_reached.connect(_on_cheer)
+	Events.lode_broken.connect(func(_p: Vector2) -> void: _on_cheer(Vector2.ZERO, 9.0))
+	Events.moth_caught.connect(func(_p: Vector2) -> void: _on_cheer(Vector2.ZERO, 9.0))
+	_lantern_angle = PI * 0.5
 
 
 func launch_origin() -> Vector2:
@@ -61,7 +69,9 @@ func _physics_process(delta: float) -> void:
 	var origin := launch_origin()
 	_shaft.carve(origin, _carve)
 	_aim_dir = _clamp_aim(_input.cursor_world() - origin)
-	_lantern.rotation = _aim_dir.angle() - PI * 0.5
+	# The lantern swings toward the aim instead of snapping.
+	_lantern_angle = lerp_angle(_lantern_angle, _aim_dir.angle(), 1.0 - exp(-12.0 * delta))
+	_lantern.rotation = _lantern_angle - PI * 0.5
 	_cooldown_left = maxf(0.0, _cooldown_left - delta)
 	if not _armed:
 		_armed = not _input.fire_held()
@@ -69,10 +79,26 @@ func _physics_process(delta: float) -> void:
 		if _embers.launch(origin, _aim_dir * Stats.get_f("launch_speed")):
 			_cooldown_total = Stats.get_f("fire_cooldown")
 			_cooldown_left = _cooldown_total
+			_squash = 1.0
 			AudioManager.play("ember_launch")
 	_update_abilities(origin, delta)
 	_rebuild_guide(origin)
 	queue_redraw()
+
+
+func _process(delta: float) -> void:
+	# Idle bob, a squash when it throws, a little hop when something great happens.
+	_time += delta
+	_squash = maxf(0.0, _squash - delta * 6.0)
+	_hop = maxf(0.0, _hop - delta)
+	var hop_y := -sin((1.0 - _hop / 0.35) * PI) * 6.0 if _hop > 0.0 else 0.0
+	_body.position = Vector2(0, -6 + sin(_time * 2.2) * 1.0 + hop_y)
+	_body.scale = Vector2(1.0 + 0.2 * _squash, 1.0 - 0.2 * _squash)
+
+
+func _on_cheer(_pos: Vector2, mult: float) -> void:
+	if mult >= 2.0 and _hop <= 0.0:
+		_hop = 0.35
 
 
 ## Keeper abilities fire on their own cooldown while the day is running (mouse-only game).

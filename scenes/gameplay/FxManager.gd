@@ -10,6 +10,7 @@ class Particle:
 	var life: float = 0.0
 	var max_life: float = 1.0
 	var color := Color.WHITE
+	var size: float = 1.0
 
 
 var _active: Array[Particle] = []
@@ -50,9 +51,12 @@ func _ready() -> void:
 	Events.peg_sparked.connect(_on_peg_sparked)
 	Events.flare_fired.connect(_on_flare_fired)
 	Events.pulse_fired.connect(_on_pulse_fired)
+	Events.lode_broken.connect(_on_lode_broken)
+	Events.jar_broken.connect(_on_jar_broken)
+	Events.moth_caught.connect(_on_moth_caught)
 
 
-func burst(at: Vector2, color: Color, count: int, speed: float, life: float) -> void:
+func burst(at: Vector2, color: Color, count: int, speed: float, life: float, size: float = 1.0) -> void:
 	for _i in count:
 		if _active.size() >= _max:
 			return
@@ -62,11 +66,14 @@ func burst(at: Vector2, color: Color, count: int, speed: float, life: float) -> 
 		p.max_life = life * _rng.randf_range(0.7, 1.0)
 		p.life = p.max_life
 		p.color = color
+		p.size = size
 		_active.append(p)
 
 
 func _on_block_broken(_cell: Vector2i, ore_id: String, world_pos: Vector2, yield_mult: float) -> void:
-	burst(world_pos, DataDB.ore_color(ore_id), _chip_count, _chip_speed, _chip_life)
+	var oc := DataDB.ore_color(ore_id)
+	burst(world_pos, oc, _chip_count, _chip_speed, _chip_life)
+	burst(world_pos, oc.darkened(0.2), DataDB.integer("fx.debris_count"), DataDB.num("fx.debris_speed"), DataDB.num("fx.debris_life_s"), 2.0)
 	if yield_mult > 1.0:
 		burst(world_pos, Color(0.9, 1.0, 1.0), _spark_count, _spark_speed, _spark_life)
 
@@ -106,6 +113,23 @@ func line(a: Vector2, b: Vector2, color: Color, width: float, life: float) -> vo
 
 func ring(at: Vector2, radius: float, color: Color, life: float) -> void:
 	_rings.append({"pos": at, "radius": radius, "life": life, "max": life, "color": color})
+
+
+## A gold shower: the lode moment.
+func _on_lode_broken(world_pos: Vector2) -> void:
+	burst(world_pos, Color(1.0, 0.85, 0.35), DataDB.integer("fx.lode_sparkles"), _chip_speed * 1.6, _chip_life * 2.0, 2.0)
+	burst(world_pos, Color(1.0, 1.0, 0.85), DataDB.integer("fx.lode_sparkles"), _chip_speed, _chip_life * 1.5)
+	ring(world_pos, 28.0, Color(1.0, 0.85, 0.4), 0.35)
+
+
+func _on_jar_broken(world_pos: Vector2, _embers: int) -> void:
+	burst(world_pos, Color(1.0, 0.6, 0.25), DataDB.integer("fx.lode_sparkles"), _chip_speed * 1.3, _chip_life * 1.6, 2.0)
+	ring(world_pos, 24.0, Color(1.0, 0.7, 0.4), 0.3)
+
+
+func _on_moth_caught(world_pos: Vector2) -> void:
+	burst(world_pos, Color(0.7, 1.0, 0.85), DataDB.integer("fx.lode_sparkles"), _chip_speed * 1.4, _chip_life * 1.8, 2.0)
+	ring(world_pos, 32.0, Color(0.7, 1.0, 0.85), 0.4)
 
 
 func _on_bomb_exploded(world_pos: Vector2, radius: int) -> void:
@@ -150,7 +174,7 @@ func _draw() -> void:
 	for p in _active:
 		var c := p.color
 		c.a = p.life / p.max_life
-		draw_rect(Rect2(p.pos.round(), Vector2.ONE), c)
+		draw_rect(Rect2(p.pos.round(), Vector2(p.size, p.size)), c)
 	for l in _lines:
 		var lc: Color = l["color"]
 		lc.a = float(l["life"]) / float(l["max"])

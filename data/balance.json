@@ -101,7 +101,11 @@
 		"spark_speed": 40,
 		"spark_life_s": 0.35,
 		"crit_spark_count": 4,
-		"particle_gravity": 220
+		"particle_gravity": 220,
+		"debris_count": 4,
+		"debris_speed": 90,
+		"debris_life_s": 0.6,
+		"lode_sparkles": 24
 	},
 	"ui": {
 		"panel_slide_s": 0.35,
@@ -254,6 +258,88 @@
 		"keeper_light_scale": 4.5,
 		"keeper_light_energy": 1.0,
 		"trail_length": 5,
-		"ambient_darken": 0.35
+		"ambient_darken": 0.35,
+		"squash_max": 0.6,
+		"dust_motes": 36
+	},
+	"juice": {
+		"hitstop_time_scale": 0.05,
+		"combo_kick_from_mult": 2.0,
+		"bomb": {
+			"shake_px": 2.5,
+			"shake_s": 0.22,
+			"hitstop_s": 0.03
+		},
+		"lode": {
+			"shake_px": 2.0,
+			"shake_s": 0.25,
+			"hitstop_s": 0.07
+		},
+		"jar": {
+			"shake_px": 1.5,
+			"shake_s": 0.2,
+			"hitstop_s": 0.05
+		},
+		"moth": {
+			"shake_px": 2.0,
+			"shake_s": 0.25,
+			"hitstop_s": 0.08
+		},
+		"combo": {
+			"shake_px": 1.0,
+			"shake_s": 0.12,
+			"hitstop_s": 0.0
+		},
+		"boss_crit": {
+			"shake_px": 1.0,
+			"shake_s": 0.1,
+			"hitstop_s": 0.0
+		},
+		"shatter": {
+			"shake_px": 5.0,
+			"shake_s": 0.6,
+			"hitstop_s": 0.18
+		},
+		"depth_bonus_every_m": 25,
+		"depth_bonus_embers": 1,
+		"jar_embers": 2,
+		"jars_per_chunk": 0.7,
+		"combo_callouts": [
+			[
+				2.0,
+				"Nice!"
+			],
+			[
+				3.0,
+				"Great!"
+			],
+			[
+				4.0,
+				"Glorious!"
+			],
+			[
+				6.0,
+				"Radiant!"
+			],
+			[
+				8.0,
+				"BLAZING!"
+			]
+		],
+		"day_banner_s": 1.6
+	},
+	"glowmoth": {
+		"first_delay_min_s": 4,
+		"first_delay_max_s": 9,
+		"interval_min_s": 10,
+		"interval_max_s": 18,
+		"cross_s": 6.0,
+		"flutter_speed": 3.0,
+		"flutter_px": 14,
+		"min_height_frac": 0.35,
+		"max_height_frac": 0.75,
+		"hit_radius_px": 10,
+		"bonus_embers": 1,
+		"bonus_ore": 6
 	}
 }
