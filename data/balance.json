@@ -131,7 +131,8 @@
 		"pickup_pitch_step": 0.05,
 		"pickup_pitch_max": 1.8,
 		"pickup_streak_reset_s": 0.5,
-		"max_voices_per_sound": 4
+		"max_voices_per_sound": 4,
+		"min_interval_s": 0.03
 	},
 	"stats": {
 		"ember_count": 6,
@@ -252,7 +253,7 @@
 		"back_parallax": 0.5,
 		"side_parallax": 0.85,
 		"side_decor_chance": 0.12,
-		"ember_lights": 24,
+		"ember_lights": 4,
 		"ember_light_scale": 1.2,
 		"ember_light_energy": 0.7,
 		"keeper_light_scale": 4.5,
@@ -260,7 +261,8 @@
 		"trail_length": 5,
 		"ambient_darken": 0.35,
 		"squash_max": 0.6,
-		"dust_motes": 36
+		"dust_motes": 36,
+		"squash_max_embers": 60
 	},
 	"juice": {
 		"hitstop_time_scale": 0.05,

@@ -23,6 +23,9 @@ var _active: Array[FloatText] = []
 var _input: PlayerInput
 var _font: Font
 var _font_size: int = 8
+var _tiers: Array = []
+var _popup_every: int = 4
+var _last_ore_ms: int = 0
 
 
 func setup(input: PlayerInput) -> void:
@@ -32,6 +35,8 @@ func setup(input: PlayerInput) -> void:
 	if theme and theme.default_font:
 		_font = theme.default_font
 	_font_size = DataDB.integer("ui.popup_font_size")
+	_tiers = DataDB.val("juice.combo_callouts")
+	_popup_every = DataDB.integer("combo.popup_every")
 	Events.combo_reached.connect(_on_combo_reached)
 	Events.ore_collected.connect(_on_ore_collected)
 	Events.jar_broken.connect(func(p: Vector2, n: int) -> void: callout(p, "+%d EMBERS!" % n, Color(1.0, 0.65, 0.3)))
@@ -75,7 +80,7 @@ func callout(at: Vector2, text: String, color: Color) -> void:
 func _on_combo_reached(world_pos: Vector2, mult: float) -> void:
 	add(world_pos + Vector2(0, -6), "x%.1f" % mult, Color(1.0, 0.8, 0.4))
 	# A word when the combo climbs into a new tier.
-	var prev := mult - Stats.get_f("combo_step") * DataDB.integer("combo.popup_every")
+	var prev := mult - Stats.get_f("combo_step") * _popup_every
 	var word := _tier_word(mult)
 	if word != "" and word != _tier_word(prev):
 		callout(world_pos + Vector2(0, -16), word, Color(1.0, 0.9, 0.5))
@@ -83,7 +88,7 @@ func _on_combo_reached(world_pos: Vector2, mult: float) -> void:
 
 func _tier_word(mult: float) -> String:
 	var word := ""
-	for t: Variant in DataDB.val("juice.combo_callouts"):
+	for t: Variant in _tiers:
 		var tier: Array = t
 		if mult >= float(tier[0]):
 			word = str(tier[1])
@@ -91,7 +96,9 @@ func _tier_word(mult: float) -> String:
 
 
 func _on_ore_collected(ore_id: String, amount: float, source: String) -> void:
-	if source == "magnet" and _input:
+	var now := Time.get_ticks_msec()
+	if source == "magnet" and _input and now - _last_ore_ms > 60:
+		_last_ore_ms = now
 		add(_input.cursor_world() + Vector2(4, -6), "+%s" % Fmt.num(amount), DataDB.ore_color(ore_id).lightened(0.3))
 
 

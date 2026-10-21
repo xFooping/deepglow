@@ -5,7 +5,7 @@ extends Node2D
 ## chamber. Tinted by the shaft's palette. Redrawn every frame (it's only a few hundred tiles).
 
 const BACK_TEXTURE := "res://art/backgrounds/cave_back.png"
-const WALL_TEXTURE := "res://art/backgrounds/wall.png"
+const WALL_TEXTURE := "res://art/backgrounds/wall_tile.png"
 const DECOR_TEXTURE := "res://art/backgrounds/decor.png"
 const FLOOR_TEXTURE := "res://art/backgrounds/floor.png"
 
@@ -37,6 +37,7 @@ func setup(shaft: Shaft, camera: CameraRig) -> void:
 	_back_parallax = DataDB.num("visuals.back_parallax")
 	_side_parallax = DataDB.num("visuals.side_parallax")
 	_decor_chance = DataDB.num("visuals.side_decor_chance")
+	texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
 
 
 func _process(_delta: float) -> void:
@@ -50,32 +51,19 @@ func _draw() -> void:
 
 	# Parallax cave wall behind the open air.
 	draw_rect(Rect2(0, view_top - cell, _shaft.width_px, view_h + cell * 2), _background)
+	# One tiled draw each (texture repeat), offset for parallax.
 	if _back:
-		var bs := _back.get_size()
-		var shift := view_top * _back_parallax
-		var y0 := floorf((view_top - shift) / bs.y) * bs.y + shift
-		var tint := _background.lightened(0.25)
-		var y := y0 - bs.y
-		while y < view_top + view_h + bs.y:
-			var x := 0.0
-			while x < _shaft.width_px:
-				var w := minf(bs.x, _shaft.width_px - x)
-				draw_texture_rect_region(_back, Rect2(x, y, w, bs.y), Rect2(0, 0, w, bs.y), tint)
-				x += bs.x
-			y += bs.y
+		_tiled(_back, Rect2(0, view_top, _shaft.width_px, view_h), view_top * (1.0 - _back_parallax), _background.lightened(0.25))
 
 	# Side margins: rock wall with decorations, scrolling a little slower than the board.
 	var side_shift := view_top * (1.0 - _side_parallax)
+	var side_scroll := view_top * _side_parallax
+	_tiled(_wall, Rect2(-_margin, view_top, _margin, view_h), side_scroll, _rock_tint)
+	_tiled(_wall, Rect2(_shaft.width_px, view_top, _margin, view_h), side_scroll, _rock_tint)
 	var first_row := floori((view_top - side_shift) / cell) - 1
-	var rows := ceili(view_h / cell) + 3
-	for r in rows:
+	for r in ceili(view_h / cell) + 3:
 		var row := first_row + r
-		var y := row * cell + side_shift
-		for x in range(-_margin - cell, 0, cell):
-			_wall_tile(Vector2(x, y), row, x)
-		for x in range(int(_shaft.width_px), int(_shaft.width_px) + _margin + cell, cell):
-			_wall_tile(Vector2(x, y), row, x)
-		_side_decor(row, y)
+		_side_decor(row, row * cell + side_shift)
 
 	# Chamber floor and funnel walls (solid, part of the board, no parallax).
 	var board_first := floori(view_top / cell) - 1
@@ -84,6 +72,16 @@ func _draw() -> void:
 		for col in _shaft.columns:
 			if row >= _shaft.floor_row or _shaft.is_chamber_wall(col, row):
 				_tile(_floor, Vector2(col * cell, row * cell), Color.WHITE)
+
+
+## Fills rect with a repeating texture whose pattern is scrolled vertically by scroll px.
+func _tiled(tex: Texture2D, rect: Rect2, scroll: float, tint: Color) -> void:
+	if tex == null:
+		draw_rect(rect, tint.darkened(0.5))
+		return
+	var th := tex.get_height()
+	var off := fposmod(rect.position.y - scroll, th)
+	draw_texture_rect_region(tex, rect, Rect2(rect.position.x, off, rect.size.x, rect.size.y), tint)
 
 
 func _wall_tile(pos: Vector2, row: int, x: int) -> void:

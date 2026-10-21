@@ -95,6 +95,7 @@ var _nova_mult: float
 var _nova_scale: float
 var _trail_len: int
 var _squash_max: float
+var _squash_limit: int
 
 
 func setup(shaft: Shaft, camera: CameraRig, day_seed: int) -> void:
@@ -118,6 +119,7 @@ func setup(shaft: Shaft, camera: CameraRig, day_seed: int) -> void:
 	_nova_scale = DataDB.num("abilities.nova_scale")
 	_trail_len = DataDB.integer("visuals.trail_length")
 	_squash_max = DataDB.num("visuals.squash_max")
+	_squash_limit = DataDB.integer("visuals.squash_max_embers")
 	_wall_restitution = DataDB.num("physics.wall_restitution")
 	_stuck_speed = DataDB.num("physics.stuck_speed_threshold")
 	_stuck_limit = DataDB.num("physics.stuck_time_to_burnout")
@@ -549,13 +551,15 @@ func _draw() -> void:
 		if e.kind == EmberKind.NOVA and _core_tex:
 			var size_v := _core_tex.get_size() * _nova_scale
 			draw_texture_rect(_core_tex, Rect2((p - size_v * 0.5).round(), size_v), false, c)
-		elif _core_tex:
-			# Squash and stretch along the direction of travel.
+		elif _core_tex and active.size() <= _squash_limit:
+			# Squash and stretch along the direction of travel (skipped in huge swarms: it breaks batching).
 			var speed := e.vel.length()
 			var stretch := 1.0 + clampf(speed / _max_speed, 0.0, 1.0) * _squash_max
 			draw_set_transform(p, e.vel.angle(), Vector2(stretch, 1.0 / stretch))
 			draw_texture(_core_tex, -_core_tex.get_size() * 0.5, c)
 			draw_set_transform(Vector2.ZERO)
+		elif _core_tex:
+			draw_texture(_core_tex, (p - _core_tex.get_size() * 0.5).round(), c)
 		else:
 			draw_circle(p, _radius, Color(1.0, 0.8, 0.4, c.a))
 
@@ -569,7 +573,8 @@ func _draw_glow() -> void:
 		# Soft fading trail behind each ember.
 		for k in e.trail.size():
 			var ta := float(k + 1) / (e.trail.size() + 1) * 0.5
-			_glow.draw_circle(e.trail[k], 1.0 + ta * 2.0, Color(1.0, 0.6, 0.25, ta))
+			var ts := 1.0 + ta * 2.0
+			_glow.draw_rect(Rect2(e.trail[k] - Vector2(ts, ts) * 0.5, Vector2(ts, ts)), Color(1.0, 0.6, 0.25, ta))
 		var p := e.prev.lerp(e.pos, f)
 		var a := lerpf(_min_alpha, 1.0, float(e.durability) / e.max_durability)
 		if e.kind == EmberKind.NOVA:

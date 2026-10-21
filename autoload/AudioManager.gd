@@ -10,6 +10,13 @@ var _events: Dictionary = {}    ## event -> {bus, volume_db, streams: Array[Audi
 var _voices: Dictionary = {}    ## event -> Array of AudioStreamPlayer
 var _pickup_streak: int = 0
 var _last_pickup_ms: int = 0
+var _last_ms: Dictionary = {}  ## event -> last play time (msec)
+var _min_interval_ms: int = 30
+var _pitch_jitter: float = 0.06
+var _pitch_step: float = 0.05
+var _pitch_max: float = 1.8
+var _streak_reset_ms: int = 500
+var _max_voices: int = 4
 var _music: AudioStreamPlayer
 var _ambience: AudioStreamPlayer
 
@@ -22,6 +29,12 @@ func _ready() -> void:
 			AudioServer.set_bus_name(idx, bus)
 			AudioServer.set_bus_send(idx, "Master")
 	_load_events()
+	_min_interval_ms = int(DataDB.num("audio.min_interval_s") * 1000.0)
+	_pitch_jitter = DataDB.num("audio.pitch_jitter")
+	_pitch_step = DataDB.num("audio.pickup_pitch_step")
+	_pitch_max = DataDB.num("audio.pickup_pitch_max")
+	_streak_reset_ms = int(DataDB.num("audio.pickup_streak_reset_s") * 1000.0)
+	_max_voices = DataDB.integer("audio.max_voices_per_sound")
 	if not DisplayServer.get_name() == "headless":
 		_music = _loop_player("music")
 		_ambience = _loop_player("ambience")
@@ -37,12 +50,16 @@ func play(event: String, pitch_step: int = 0) -> void:
 	var streams: Array = entry.get("streams", [])
 	if streams.is_empty():
 		return
+	var now := Time.get_ticks_msec()
+	if now - int(_last_ms.get(event, -100000)) < _min_interval_ms:
+		return
+	_last_ms[event] = now
 	var pitch := 1.0
 	if event == "ore_pickup":
 		pitch = _pickup_pitch()
 	elif pitch_step > 0:
-		pitch = minf(1.0 + DataDB.num("audio.pickup_pitch_step") * pitch_step, DataDB.num("audio.pickup_pitch_max"))
-	var jitter := DataDB.num("audio.pitch_jitter")
+		pitch = minf(1.0 + _pitch_step * pitch_step, _pitch_max)
+	var jitter := _pitch_jitter
 	var player := _voice_for(event)
 	player.stream = streams[randi() % streams.size()]
 	player.bus = str(entry.get("bus", "SFX"))
@@ -93,11 +110,11 @@ func _loop_player(event: String) -> AudioStreamPlayer:
 ## Rising chime when ore is collected in quick succession; resets after a short idle.
 func _pickup_pitch() -> float:
 	var now := Time.get_ticks_msec()
-	if now - _last_pickup_ms > int(DataDB.num("audio.pickup_streak_reset_s") * 1000.0):
+	if now - _last_pickup_ms > _streak_reset_ms:
 		_pickup_streak = 0
 	_last_pickup_ms = now
 	_pickup_streak += 1
-	return minf(1.0 + DataDB.num("audio.pickup_pitch_step") * (_pickup_streak - 1), DataDB.num("audio.pickup_pitch_max"))
+	return minf(1.0 + _pitch_step * (_pickup_streak - 1), _pitch_max)
 
 
 ## Reuses a free player for this event, or steals the oldest one past the voice limit.
@@ -107,7 +124,7 @@ func _voice_for(event: String) -> AudioStreamPlayer:
 		var p: AudioStreamPlayer = v
 		if not p.playing:
 			return p
-	if voices.size() < DataDB.integer("audio.max_voices_per_sound"):
+	if voices.size() < _max_voices:
 		var p := AudioStreamPlayer.new()
 		add_child(p)
 		voices.append(p)

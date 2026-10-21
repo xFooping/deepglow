@@ -86,6 +86,7 @@ func _init() -> void:
 	_save(_rock(Color(0.75, 0.75, 0.75), 7, false), "res://art/backgrounds/rock.png")
 	_save(_cave_back(), "res://art/backgrounds/cave_back.png")
 	_save(_wall_strip(), "res://art/backgrounds/wall.png")
+	_save(_wall_tile(), "res://art/backgrounds/wall_tile.png")
 	_save(_decor_strip(), "res://art/backgrounds/decor.png")
 	_save(_light(), "res://art/fx/light.png")
 	_save(_rock(Color(0.28, 0.22, 0.3), 11, true), "res://art/backgrounds/floor.png")
@@ -189,6 +190,27 @@ func _wall_strip() -> Image:
 				if (y + v * 5) % 9 == 0 or (x + v * 3) % 11 == 0:
 					b -= 0.18
 				img.set_pixel(v * 16 + x, y, Color(b, b, b))
+	return img
+
+
+## A seamless 64x64 cave-wall tile for the side margins (tinted per shaft).
+func _wall_tile() -> Image:
+	var img := _new(64, 64)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 41
+	for y in 64:
+		for x in 64:
+			var b := 0.72 + rng.randf_range(-0.06, 0.06) + 0.05 * sin(x * 0.3) * cos(y * 0.2)
+			img.set_pixel(x, y, Color(b, b, b))
+	# Irregular stone seams, wrapped so the tile repeats cleanly.
+	for _k in 10:
+		var p := Vector2(rng.randi_range(0, 63), rng.randi_range(0, 63))
+		var d := Vector2.from_angle(rng.randf() * TAU)
+		for _s in 14:
+			var ip := Vector2i(p.round())
+			img.set_pixel(posmod(ip.x, 64), posmod(ip.y, 64), Color(0.48, 0.48, 0.48))
+			p += d
+			d = d.rotated(rng.randf_range(-0.6, 0.6))
 	return img
 
 

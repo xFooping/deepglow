@@ -25,6 +25,9 @@ var _spark_count: int
 var _crit_count: int
 var _spark_speed: float
 var _spark_life: float
+var _debris_count: int
+var _debris_speed: float
+var _debris_life: float
 var _lines: Array[Dictionary] = []  ## {a, b, life, max, color, width}
 var _rings: Array[Dictionary] = []  ## {pos, radius, life, max, color}
 
@@ -40,6 +43,9 @@ func _ready() -> void:
 	_crit_count = DataDB.integer("fx.crit_spark_count")
 	_spark_speed = DataDB.num("fx.spark_speed")
 	_spark_life = DataDB.num("fx.spark_life_s")
+	_debris_count = DataDB.integer("fx.debris_count")
+	_debris_speed = DataDB.num("fx.debris_speed")
+	_debris_life = DataDB.num("fx.debris_life_s")
 	Events.block_broken.connect(_on_block_broken)
 	Events.block_hit.connect(_on_block_hit)
 	Events.ember_burned_out.connect(_on_ember_burned_out)
@@ -73,7 +79,7 @@ func burst(at: Vector2, color: Color, count: int, speed: float, life: float, siz
 func _on_block_broken(_cell: Vector2i, ore_id: String, world_pos: Vector2, yield_mult: float) -> void:
 	var oc := DataDB.ore_color(ore_id)
 	burst(world_pos, oc, _chip_count, _chip_speed, _chip_life)
-	burst(world_pos, oc.darkened(0.2), DataDB.integer("fx.debris_count"), DataDB.num("fx.debris_speed"), DataDB.num("fx.debris_life_s"), 2.0)
+	burst(world_pos, oc.darkened(0.2), _debris_count, _debris_speed, _debris_life, 2.0)
 	if yield_mult > 1.0:
 		burst(world_pos, Color(0.9, 1.0, 1.0), _spark_count, _spark_speed, _spark_life)
 
